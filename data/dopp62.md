@@ -1,55 +1,8 @@
-## 材料A：
-They say that even the servants to the Emperor Qin Shi Huang couldn't find the elixir of immortality, yet...
-What is Princess Kaguya thinking?
-...Does she really think we can find things like the Jeweled Branch of Hourai?
-
-It looks like some strange person has slipped in again.
-I'd better do something before she gets to the shrine...
-Oh, that girl... doesn't look like a human or a youkai.
-
-I wonder if ＊ is still sleeping under that cherry tree.
-The flower petals were once so crimson, but they get paler year by year.
-There may no longer be anything remaining beneath the soil.
-
-Opium smoke lingers over the town in a cloud, flowing into every nook and cranny. I am in the settlement. The people dance a waltz in clothes of the most brilliant colours. The magic won't reach me here.
-
-"Youkai? These days, that's pretty irrational."
-But, I know. That the youkai would live in peace if the humans believed they did.
-Youkai are more peaceful and pragmatic than humans.
-
-Oh, and I wanted to get rid of this doll as soon as possible, too.
-But, those blue eyes. Sometimes a black crow carries them away and eats them. Those are real eyes.
-Because I always put in new eyes.
-
-Alright, next on stage is a bird-person.
-This bird-person was somehow born from the union of a human and a rare bird of paradise that only lives in a land far to the south.
-Its parents had died a long time ago, so we took pity on the poor orphan and brought it into our troupe. Isn't that kind of us?
-
-It won't stop raining.
-I haven't seen the sun once since I wandered into this house.
-I wonder how many days it's been.
-The doll talks to me incessantly.
-I cut off the doll's head. It looks like the rain has stopped.
-
-No way. I'm not stupid, you know.
-My friends would just laugh at me if I told them.
-They wouldn't believe they sell a love potion at that store.
-So, I broke open my piggy bank without telling anyone.
-
-It's strange that there's a Western-style house in the middle of a roadless forest to begin with. The girl who lived there hardly ever came into town. But, lately, I've seen a girl who looks like her daughter.
-How do I know she had a daughter?
-Well, since the girl looks like she did when she was young...
-
-You lack imagination. You'd definitely fall into their trap. A criminal with as much imagination as U.N. Owen could have a rope around your neck before breakfast.
-
-Nothing happened at all today.
-I was promised nothing at all would happen tomorrow.
-Nobody comes here. Not humans, not gods.
-Youkai? Oh, they come every day.
-
-Lately, a lot more people are ignorantly throwing out things like "It's magic" or "It's a youkai". Such a sad state of affairs.
-
-## 材料B：
+---
+author:ZUN
+hash:0
+abstract:0
+---
 Our village of honest men originally consisted of only eight people.
 We all picked up and moved to a mountain in the east. Two years of honest and boring daily life passed us by.
 One day, one of us found a little hole by a peach tree.
@@ -129,33 +82,3 @@ Come to think of it, that girl was the only woman of the eight honest men, not t
 
 There are eight less humans in this paradise, "Gensokyo", and seven corpses were safely carried off by youkai. Gensokyo has lost honest men forever. It's just a change in the population count.
 Not important news in the least.
-
-## 要求：
-请以阅读理解的标准，出几道阅读理解大题。
-出题要求：
-1. 不得在答案中含有暗示思路式的思考。例如：“与材料A中“最近很多人无知地喊‘这是魔法’、‘这是妖怪’，真是可悲”这句话，是否有内在联系？”这一问题，明摆着让人回答有内在联系。
-2. 不得出成实际上的选择/多选题。如上面的样例，仅仅需要回答是或否。题干太浅。
-
-
-## 题目样例
-### 第三题：主题理解与综合分析
-
-#### 题目
-**材料A和材料B共同构建了一个关于“幻想与现实”、“理性与非理性”、“妖怪与人类”的复杂叙事。请结合两則材料，回答以下问题：**
-1. 材料A中说：“妖怪比人类更和平、更务实。”（Youkai are more peaceful and pragmatic than humans.）材料B中，人类（诚实者）在乐园中的行为是否印证了这一观点？为什么？
-    
-2. 材料A开头提到“秦始皇的仆人找不到不死药”，而材料B中出现了“蓬莱玉枝”和“乐园”。这两则材料是否在暗示“永生”或“理想乡”的不可得？请结合文本说明。
-    
-3. 材料B的结尾，巫女写道：“少了八个人类……无关紧要的消息。”这种冷漠的语气反映了什么态度？与材料A中“最近很多人无知地喊‘这是魔法’、‘这是妖怪’，真是可悲”是否有内在联系？
-#### 参考答案：
-1. 部分印证。材料B中的人类在进入乐园后互相猜疑、逐一死亡，表现出非理性、自毁和欺骗；而材料A中妖怪被描述为务实、和平，甚至比人类更理性。两者的对比揭示了“人类是幻想世界中不稳定的因素”这一主题。
-    
-2. 是。玉枝、不死药、乐园等古典“理想象征”在文本中都导致了死亡、幻觉或失落，暗示着对永恒、理想或超验目标的追求往往以失败告终，甚至带来毁灭。
-    
-3. 巫女的冷漠表明乐园（幻想乡）对人类命运并不真正关注，人类只是“人口统计上的变化”。这与材料A中“人们滥用‘妖怪’、‘魔法’等词是可悲”的观点一致，都揭示了幻想世界对现实逻辑的疏离，以及人类在非现实空间中的微不足道。
-
-## 评分点
-多维度分数：
-1. 参考答案匹配度。多个小题与答案，综合评一个分。
-2. 答案合理新颖度。可能答案不太完全匹配参考答案，但是提供了新颖的视角。同时，答案本身需要符合基础逻辑，不是无效搅浑水、庸俗辩证、打太极的答案。
-以上所有角度的评分，”及格60，优秀90，满分100“。

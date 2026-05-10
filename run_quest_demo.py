@@ -1,6 +1,6 @@
 """多 Operator 问答模拟演示 —— Q&A 循环驱动图权重自组织。"""
 
-from mgraph import mg, Node
+from mgraph import MGraph, Node
 from operators import Operator
 from quest_board import QuestBoard
 import matplotlib.pyplot as plt
@@ -83,7 +83,7 @@ def visualize_graph(graph, title, step):
 
 def main():
     # ── 初始化 ────────────────────────────────────
-    g = mg()
+    g = MGraph()
     g.init_graph_full_random(6, 0.5, 2)
 
     operators = {

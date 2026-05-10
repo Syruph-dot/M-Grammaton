@@ -1,0 +1,5 @@
+__pycache__/
+.claude/
+.pytest_cache/
+.venv/
+00-设计/

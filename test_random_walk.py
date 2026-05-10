@@ -4,7 +4,7 @@ from random import randint
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 
-from mgraph import insert_response, mg
+from mgraph import insert_response, MGraph
 
 NODES = 6
 STEPS = 1000
@@ -149,7 +149,7 @@ def build_adjacency_matrix(nodes):
     return matrix
 
 
-graph = mg()
+graph = MGraph()
 graph.init_graph_full_random(NODES, 0.5, 5)
 nodes = ordered_nodes(graph)
 node_to_index = {item: index for index, item in enumerate(nodes)}

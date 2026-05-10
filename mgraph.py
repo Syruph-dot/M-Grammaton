@@ -302,7 +302,7 @@ def polar_redist(positive: float, negative: float):
     return amp * cos(theta), amp * sin(theta)
 
 
-class mg():
+class MGraph():
     def __init__(self):
         self.V: set[Node] = set()
         self.E: set[Edge] = set()
