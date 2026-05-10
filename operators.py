@@ -69,6 +69,36 @@ class Operator:
         self.current.bind(target)
         return target
 
+    def read_for_quest(self, node_limit: int = 3):
+        """从当前节点出发，沿 sample_l2 行走并记录阅读路径。
+
+        返回:
+            node_names: list[str]   — 访问过的节点名
+            path_edges: list[tuple[str, str]] — (source, target) 边列表
+            context_text: str       — 节点内容拼接
+        """
+        start = self.current.get()
+        node_names: list[str] = [start.name]
+        path_edges: list[tuple[str, str]] = []
+        context_parts: list[str] = []
+
+        if start.content:
+            context_parts.append(f"「{start.title}」：\n{start.content}")
+
+        current = start
+        for _ in range(node_limit - 1):
+            nxt, edge = current.sample_l2()
+            if edge is None:
+                break
+            path_edges.append((current.name, nxt.name))
+            node_names.append(nxt.name)
+            if nxt.content:
+                context_parts.append(f"「{nxt.title}」：\n{nxt.content}")
+            current = nxt
+
+        context_text = "\n\n---\n\n".join(context_parts)
+        return node_names, path_edges, context_text
+
     def answer_quest(
         self, quest: QuestNode, board: QuestBoard, graph, answer_text: str = None
     ) -> int:
