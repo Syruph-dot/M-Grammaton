@@ -75,7 +75,7 @@ def test_trace_index_alignment():
 
 
 def test_answer_quest_creates_trace():
-    """Operator.answer_quest() creates a basic trace automatically."""
+    """Operator.answer_quest() creates a trace with reading path data."""
     g = MGraph()
     anchor = g.add_node(Node("op_bob", mg=g))
     op = Operator("bob", anchor)
@@ -85,9 +85,35 @@ def test_answer_quest_creates_trace():
 
     idx = op.answer_quest(quest, board, g)
 
-    # The trace was stored
+    # The trace was stored with path data from read_for_quest()
     trace = quest.answer_traces[idx]
     assert trace is not None
     assert trace.answerer_id == "bob"
     assert trace.quest_name == quest.name
     assert trace.answer_index == idx
+    # Even without outlinks, trace includes the starting node
+    assert len(trace.node_names) >= 1
+    assert trace.node_names[0] == "op_bob"
+
+
+def test_answer_quest_trace_has_edges_when_path_exists():
+    """When the graph has edges, trace records the traversed path."""
+    from mgraph import MGraph as MG, Node as Nd
+
+    g = MG()
+    n0 = g.add_node(Nd("start", mg=g))
+    n1 = g.add_node(Nd("mid", mg=g))
+    n2 = g.add_node(Nd("end", mg=g))
+    n0.link_to(n1, 1.0)
+    n1.link_to(n2, 1.0)
+
+    op = Operator("reader", n0)
+    board = QuestBoard()
+    quest = board.post("alice", "q?", g)
+
+    idx = op.answer_quest(quest, board, g)
+    trace = quest.answer_traces[idx]
+
+    assert len(trace.node_names) >= 2  # start + at least one step
+    assert len(trace.edge_refs) >= 1   # at least one edge
+    assert trace.edge_refs[0] == ("start", "mid")

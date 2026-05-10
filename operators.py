@@ -102,13 +102,19 @@ class Operator:
     def answer_quest(
         self, quest: QuestNode, board: QuestBoard, graph, answer_text: str = None
     ) -> int:
+        # 先阅读路径
+        node_names, path_edges, _ = self.read_for_quest()
+        # 导航到 quest 节点
+        self.navigate_to(graph, quest)
+        # 生成答案（第一版仍为规则模板，Phase 8 替换为 LLM）
         if answer_text is None:
             answer_text = f"{self.id} answers '{quest.content}'"
-        self.navigate_to(graph, quest)
         trace = AnswerTrace(
             quest_name=quest.name,
             answer_index=-1,  # filled by submit_answer
             answerer_id=self.id,
+            node_names=node_names,
+            edge_refs=path_edges,
         )
         return board.submit_answer(quest, self.id, answer_text, trace=trace)
 
