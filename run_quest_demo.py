@@ -15,10 +15,10 @@ QUEST_POOL = [
 ]
 
 SCORE_STRATEGIES = {
-    "Alice": {"Bob": 0.85, "Carol": 0.40, "Dave": 0.70},
-    "Bob": {"Alice": 0.75, "Carol": 0.60, "Dave": 0.90},
-    "Carol": {"Alice": 0.30, "Bob": 0.80, "Dave": 0.55},
-    "Dave": {"Alice": 0.65, "Bob": 0.45, "Carol": 0.85},
+    "Alice": {"Bob": 85, "Carol": 40, "Dave": 70},
+    "Bob": {"Alice": 75, "Carol": 60, "Dave": 90},
+    "Carol": {"Alice": 30, "Bob": 80, "Dave": 55},
+    "Dave": {"Alice": 65, "Bob": 45, "Carol": 85},
 }
 
 

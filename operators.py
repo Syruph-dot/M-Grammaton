@@ -86,7 +86,7 @@ class Operator:
         board: QuestBoard,
     ) -> None:
         board.set_score(quest, answerer_id, score)
-        reaction = score >= 0.5
+        reaction = score > 80
 
         answerer_anchor = asker_anchor = None
         for node in graph.V:

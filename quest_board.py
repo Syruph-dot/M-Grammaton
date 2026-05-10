@@ -42,6 +42,8 @@ class QuestBoard:
 
     def set_score(self, quest: QuestNode, answerer_id: str, score: float) -> None:
         """Score the latest answer from an answerer for a quest."""
+        if not (0 <= score <= 100):
+            raise ValueError(f"score must be in 0-100 range, got {score}")
         indices = [i for i, fid in enumerate(quest.from_ids) if fid == answerer_id]
         if not indices:
             raise ValueError(f"{answerer_id} has not answered this quest")
