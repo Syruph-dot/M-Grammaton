@@ -40,15 +40,17 @@ class QuestBoard:
         quest.scores.append(None)
         return idx
 
-    def set_score(self, quest: QuestNode, answerer_id: str, score: float) -> None:
-        """Score the latest answer from an answerer for a quest."""
-        if not (0 <= score <= 100):
-            raise ValueError(f"score must be in 0-100 range, got {score}")
+    def set_score(self, quest: QuestNode, answerer_id: str, match_score: float, novelty_score: float) -> None:
+        """Score the latest answer on two dimensions: [匹配度, 新颖度]."""
+        if not (0 <= match_score <= 100):
+            raise ValueError(f"match_score must be in 0-100, got {match_score}")
+        if not (0 <= novelty_score <= 100):
+            raise ValueError(f"novelty_score must be in 0-100, got {novelty_score}")
         indices = [i for i, fid in enumerate(quest.from_ids) if fid == answerer_id]
         if not indices:
             raise ValueError(f"{answerer_id} has not answered this quest")
         idx = indices[-1]
-        quest.scores[idx] = score
+        quest.scores[idx] = (match_score, novelty_score)
 
     def close(self, quest: QuestNode) -> None:
         """Close a quest, moving it from active to completed."""

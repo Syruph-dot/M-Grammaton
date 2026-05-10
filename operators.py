@@ -81,12 +81,14 @@ class Operator:
         self,
         quest: QuestNode,
         answerer_id: str,
-        score: float,
+        match_score: float,
+        novelty_score: float,
         graph,
         board: QuestBoard,
     ) -> None:
-        board.set_score(quest, answerer_id, score)
-        reaction = score > 80
+        board.set_score(quest, answerer_id, match_score, novelty_score)
+        avg_score = (match_score + novelty_score) / 2
+        reaction = avg_score > 80
 
         answerer_anchor = asker_anchor = None
         for node in graph.V:

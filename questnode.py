@@ -7,5 +7,5 @@ class QuestNode(Node):
         self.quester_id = quester_id
         self.content = content
         self.answers:list[str]=[]
-        self.scores:list[None | float]=[]
+        self.scores:list[None | tuple[float, float]]=[]  # [匹配度, 新颖度]
         self.from_ids:list[str]=[]

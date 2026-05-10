@@ -15,10 +15,10 @@ QUEST_POOL = [
 ]
 
 SCORE_STRATEGIES = {
-    "Alice": {"Bob": 85, "Carol": 40, "Dave": 70},
-    "Bob": {"Alice": 75, "Carol": 60, "Dave": 90},
-    "Carol": {"Alice": 30, "Bob": 80, "Dave": 55},
-    "Dave": {"Alice": 65, "Bob": 45, "Carol": 85},
+    "Alice": {"Bob": (85, 70), "Carol": (40, 65), "Dave": (70, 75)},
+    "Bob": {"Alice": (75, 70), "Carol": (60, 65), "Dave": (90, 80)},
+    "Carol": {"Alice": (30, 60), "Bob": (80, 70), "Dave": (55, 65)},
+    "Dave": {"Alice": (65, 70), "Bob": (45, 60), "Carol": (85, 75)},
 }
 
 
@@ -34,16 +34,17 @@ def edge_weight_matrix(g, nodes):
 
 
 def print_quest_table(board):
-    print(f"  {'Quest':<18} {'Quester':<10} {'Answers':<8} {'Avg Score':<10}")
-    print(f"  {'-'*46}")
+    print(f"  {'Quest':<18} {'Quester':<10} {'Answers':<8} {'Avg Match':<10} {'Avg Novel':<10}")
+    print(f"  {'-'*56}")
     for q in board.active + board.completed:
-        avg = (
-            sum(s for s in q.scores if s is not None) / len([s for s in q.scores if s is not None])
-            if any(s is not None for s in q.scores)
-            else 0
-        )
-        answered = len([s for s in q.scores if s is not None])
-        print(f"  {q.name:<18} {q.quester_id:<10} {answered:<8} {avg:.3f}")
+        scored = [s for s in q.scores if s is not None]
+        if scored:
+            avg_match = sum(s[0] for s in scored) / len(scored)
+            avg_novel = sum(s[1] for s in scored) / len(scored)
+        else:
+            avg_match = avg_novel = 0
+        answered = len(scored)
+        print(f"  {q.name:<18} {q.quester_id:<10} {answered:<8} {avg_match:<10.1f} {avg_novel:<10.1f}")
 
 
 def print_edge_table(graph):
@@ -132,9 +133,9 @@ def main():
         for ans_name in operators:
             if ans_name == asker_name:
                 continue
-            score = SCORE_STRATEGIES[asker_name].get(ans_name, 0.5)
-            asker.score_answer(quest, ans_name, score, g, board)
-            print(f"  [{asker_name}] → {ans_name} 评分: {score}")
+            match_score, novelty_score = SCORE_STRATEGIES[asker_name].get(ans_name, (50, 50))
+            asker.score_answer(quest, ans_name, match_score, novelty_score, g, board)
+            print(f"  [{asker_name}] → {ans_name}  [{match_score}, {novelty_score}]")
 
         # ── 归一化 ──
         g.force_normalize()
