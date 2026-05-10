@@ -128,22 +128,24 @@ class Operator:
         board: QuestBoard,
     ) -> None:
         board.set_score(quest, answerer_id, match_score, novelty_score)
+
+        # 找到该回答对应的 answer index 和 trace
+        indices = [i for i, fid in enumerate(quest.from_ids) if fid == answerer_id]
+        if not indices:
+            return
+        idx = indices[-1]
+        trace = quest.answer_traces[idx] if idx < len(quest.answer_traces) else None
+        if trace is None or trace.feedback_applied:
+            return
+
         avg_score = (match_score + novelty_score) / 2
         reaction = avg_score > 80
 
-        answerer_anchor = asker_anchor = None
-        for node in graph.V:
-            if node.name == f"op_{answerer_id}":
-                answerer_anchor = node
-            if node.name == f"op_{self.id}":
-                asker_anchor = node
+        # 只反馈 evidence path（不反馈导航到 quest 的边）
+        edge_map = {(e.source.name, e.target.name): e for e in graph.E}
+        for src_name, tgt_name in trace.edge_refs:
+            edge = edge_map.get((src_name, tgt_name))
+            if edge is not None:
+                insert_response(reaction, edge)
 
-        if answerer_anchor is not None and asker_anchor is not None:
-            edge = None
-            for e in answerer_anchor.outlinks:
-                if e.target is asker_anchor:
-                    edge = e
-                    break
-            if edge is None:
-                edge = answerer_anchor.link_to(asker_anchor, 0.5)
-            insert_response(reaction, edge)
+        trace.feedback_applied = True
