@@ -1,6 +1,6 @@
 from random import choice, getrandbits
 
-from questnode import QuestNode
+from questnode import AnswerTrace, QuestNode
 
 
 class QuestBoard:
@@ -32,12 +32,17 @@ class QuestBoard:
         """Get active quests posted by an operator."""
         return [q for q in self.active if q.quester_id == operator_id]
 
-    def submit_answer(self, quest: QuestNode, answerer_id: str, answer: str) -> int:
-        """Submit an answer and return its index."""
+    def submit_answer(self, quest: QuestNode, answerer_id: str, answer: str, trace: AnswerTrace | None = None) -> int:
+        """Submit an answer and return its index. Optionally attach a reading trace."""
         idx = len(quest.answers)
         quest.answers.append(answer)
         quest.from_ids.append(answerer_id)
         quest.scores.append(None)
+        if trace is not None:
+            trace.answer_index = idx
+            quest.answer_traces.append(trace)
+        else:
+            quest.answer_traces.append(None)
         return idx
 
     def set_score(self, quest: QuestNode, answerer_id: str, match_score: float, novelty_score: float) -> None:

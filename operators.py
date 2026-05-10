@@ -2,7 +2,7 @@ from random import randint, uniform
 
 from mgraph import Node, NodePtr, insert_response
 from quest_board import QuestBoard
-from questnode import QuestNode
+from questnode import AnswerTrace, QuestNode
 
 
 class Operator:
@@ -75,7 +75,12 @@ class Operator:
         if answer_text is None:
             answer_text = f"{self.id} answers '{quest.content}'"
         self.navigate_to(graph, quest)
-        return board.submit_answer(quest, self.id, answer_text)
+        trace = AnswerTrace(
+            quest_name=quest.name,
+            answer_index=-1,  # filled by submit_answer
+            answerer_id=self.id,
+        )
+        return board.submit_answer(quest, self.id, answer_text, trace=trace)
 
     def score_answer(
         self,
