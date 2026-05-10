@@ -22,17 +22,6 @@ SCORE_STRATEGIES = {
 }
 
 
-def edge_weight_matrix(g, nodes):
-    idx = {n: i for i, n in enumerate(nodes)}
-    size = len(nodes)
-    m = [[0.0] * size for _ in range(size)]
-    for src in nodes:
-        for e in src.outlinks:
-            if e.target in idx:
-                m[idx[src]][idx[e.target]] = e.value
-    return m
-
-
 def print_quest_table(board):
     print(f"  {'Quest':<18} {'Quester':<10} {'Answers':<8} {'Avg Match':<10} {'Avg Novel':<10}")
     print(f"  {'-'*56}")
@@ -127,7 +116,10 @@ def main():
             if ans_name == asker_name:
                 continue
             ans_op.answer_quest(quest, board, g)
+            trace = quest.answer_traces[-1]
+            path_str = " -> ".join(trace.node_names) if trace else "(no trace)"
             print(f"  [{ans_name}] 回答: {quest.answers[-1][:40]}...")
+            print(f"         path: {path_str}")
 
         # ── 评分 ──
         for ans_name in operators:
@@ -135,21 +127,18 @@ def main():
                 continue
             match_score, novelty_score = SCORE_STRATEGIES[asker_name].get(ans_name, (50, 50))
             asker.score_answer(quest, ans_name, match_score, novelty_score, g, board)
-            print(f"  [{asker_name}] → {ans_name}  [{match_score}, {novelty_score}]")
+            avg = (match_score + novelty_score) / 2
+            fb = "positive" if avg > 80 else "negative"
+            indices = [i for i, fid in enumerate(quest.from_ids) if fid == ans_name]
+            idx = indices[-1]
+            trace = quest.answer_traces[idx]
+            edges = len(trace.edge_refs) if trace else 0
+            print(f"  [{asker_name}] → {ans_name}  [{match_score}, {novelty_score}]  avg={avg:.0f}  {fb}  edges={edges}")
 
         # ── 归一化 ──
         g.force_normalize()
 
-        # ── 输出状态 ──
-        print(f"\n  --- 边权重 (op 节点间) ---")
-        for src_name in operators:
-            src = anchors[src_name]
-            for e in src.outlinks:
-                if e.target in anchors.values():
-                    tgt_name = next(n for n, a in anchors.items() if a is e.target)
-                    print(f"    {src_name} -> {tgt_name}: {e.value:.4f}")
-
-        # 所有 operator 回到锚点
+        # ── 所有 operator 回到锚点 ──
         for op in operators.values():
             op.bind(anchors[op.id])
 
@@ -160,15 +149,9 @@ def main():
     print("\n--- 问答板 ---")
     print_quest_table(board)
 
-    # 可视化边权重变化
-    print("\n--- operator 间边权重热图 (最后状态) ---")
-    op_nodes = [op.current.get() for op in operators.values()]
-    op_names = list(operators.keys())
-    matrix = edge_weight_matrix(g, op_nodes)
-    if matrix:
-        print(f"     {'':>10}", " ".join(f"{n:>10}" for n in op_names))
-        for i, row_name in enumerate(op_names):
-            print(f"     {row_name:>10}", " ".join(f"{v:>10.4f}" for v in matrix[i]))
+    # ── 图边权重 ──
+    print("\n--- 图中所有边 (最后状态) ---")
+    print_edge_table(g)
 
     print("\n  [OK] 模拟完成")
 
