@@ -140,8 +140,8 @@ def _parse_material_sections(text: str) -> list[tuple[str, str]]:
 
 
 def _make_node_name(source_stem: str, label: str) -> str:
-    """生成节点名：源文件名_材料X。"""
-    return f"{source_stem}_材料{label}"
+    """生成节点名：源文件名_区段标签（仅字母，不含"材料"）。"""
+    return f"{source_stem}_{label}"
 
 
 def _extract_title(content: str, label: str) -> str:
@@ -149,7 +149,7 @@ def _extract_title(content: str, label: str) -> str:
     first_line = content.split("\n")[0].strip()[:60]
     # 去除末尾不完整的单词/字符
     clean = first_line.rstrip(",.;:!?，。；：！？")
-    return f"材料{label} — {clean}" if clean else f"材料{label}"
+    return clean if clean else f"章节{label}"
 
 
 def _slugify(text: str) -> str:

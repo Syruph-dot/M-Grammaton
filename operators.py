@@ -1,4 +1,5 @@
 from random import randint, uniform
+import string
 
 from mgraph import Node, NodePtr, insert_response
 from quest_board import QuestBoard
@@ -102,16 +103,15 @@ class Operator:
         返回:
             node_names: list[str]   — 访问过的节点名
             path_edges: list[tuple[str, str]] — (source, target) 边列表
-            context_text: str       — 节点内容拼接
+            context_text: str       — 节点内容拼接（含临时标签【材料A/B/C…】）
         """
         start = self.current.get()
         node_names: list[str] = [start.name]
         path_edges: list[tuple[str, str]] = []
         context_parts: list[str] = []
 
-        if start.content:
-            context_parts.append(f"「{start.title}」：\n{start.content}")
-
+        # 收集访问过的节点
+        visited: list = [start]
         current = start
         for _ in range(node_limit - 1):
             nxt, edge = current.sample_l2()
@@ -119,9 +119,14 @@ class Operator:
                 break
             path_edges.append((current.name, nxt.name))
             node_names.append(nxt.name)
-            if nxt.content:
-                context_parts.append(f"「{nxt.title}」：\n{nxt.content}")
+            visited.append(nxt)
             current = nxt
+
+        # 构建带临时标签的上下文（标签不落任何节点属性）
+        for i, node in enumerate(visited):
+            if node.content:
+                tag = f"【材料{string.ascii_uppercase[i]}】" if i < 26 else f"【材料{i+1}】"
+                context_parts.append(f"{tag}「{node.title}」：\n{node.content}")
 
         context_text = "\n\n---\n\n".join(context_parts)
         return node_names, path_edges, context_text
