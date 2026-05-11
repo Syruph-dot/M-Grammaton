@@ -10,7 +10,7 @@ import yaml
 from pathlib import Path
 
 from mgraph import MGraph, Node, Edge, binResponse
-from questnode import QuestNode, AnswerTrace
+from questnode import AnswerNode, QuestNode, AnswerTrace
 from quest_board import QuestBoard
 from operators import Operator
 
@@ -220,10 +220,14 @@ def _node_to_md(node: Node) -> str:
     if isinstance(node, QuestNode):
         fm["kind"] = "quest"
         fm["quester_id"] = node.quester_id
-        fm["answers"] = node.answers
-        fm["scores"] = [list(s) if s is not None else None for s in node.scores]
-        fm["from_ids"] = node.from_ids
-        fm["answer_traces"] = _serialize_traces_raw(node.answer_traces)
+
+    if isinstance(node, AnswerNode):
+        fm["kind"] = "answer"
+        fm["answerer_id"] = node.answerer_id
+        fm["quest_name"] = node.quest_name
+        fm["match_score"] = node.match_score
+        fm["novelty_score"] = node.novelty_score
+        fm["trace"] = _serialize_trace(node.trace) if node.trace else None
 
     yaml_str = yaml.safe_dump(fm, allow_unicode=True, default_flow_style=False,
                                sort_keys=False).strip()
@@ -251,11 +255,16 @@ def _md_to_node(md_text: str, graph: MGraph) -> tuple[Node, str | None, list[lis
             quester_id=fm.get("quester_id", ""),
             content="",
         )
-        node.answers = fm.get("answers", [])
-        raw_scores = fm.get("scores", [])
-        node.scores = [tuple(s) if s is not None else None for s in raw_scores]
-        node.from_ids = fm.get("from_ids", [])
-        node.answer_traces = _deserialize_traces(fm.get("answer_traces", []))
+    elif kind == "answer":
+        node = AnswerNode(
+            name=name,
+            answerer_id=fm.get("answerer_id", ""),
+            quest_name=fm.get("quest_name", ""),
+            content="",
+        )
+        node.match_score = fm.get("match_score")
+        node.novelty_score = fm.get("novelty_score")
+        node.trace = _deserialize_trace(fm.get("trace"))
     else:
         node = Node(name=name, kind=kind, content="")
 
@@ -347,37 +356,27 @@ def _compress_stk(stk_data: list[list]) -> list[list]:
 
 # ── AnswerTrace 序列化 ────────────────────────────
 
-def _serialize_traces_raw(traces: list) -> list:
-    out = []
-    for t in traces:
-        if t is None:
-            out.append(None)
-            continue
-        out.append({
-            "quest_name": t.quest_name,
-            "answer_index": t.answer_index,
-            "answerer_id": t.answerer_id,
-            "node_names": t.node_names,
-            "edge_refs": t.edge_refs,
-            "score": t.score,
-            "feedback_applied": t.feedback_applied,
-        })
-    return out
+def _serialize_trace(t: AnswerTrace) -> dict:
+    return {
+        "quest_name": t.quest_name,
+        "answer_index": t.answer_index,
+        "answerer_id": t.answerer_id,
+        "node_names": t.node_names,
+        "edge_refs": t.edge_refs,
+        "score": t.score,
+        "feedback_applied": t.feedback_applied,
+    }
 
 
-def _deserialize_traces(raw: list) -> list:
-    out = []
-    for item in raw:
-        if item is None:
-            out.append(None)
-            continue
-        out.append(AnswerTrace(
-            quest_name=item.get("quest_name", ""),
-            answer_index=item.get("answer_index", -1),
-            answerer_id=item.get("answerer_id", ""),
-            node_names=item.get("node_names", []),
-            edge_refs=[tuple(p) for p in item.get("edge_refs", [])],
-            score=item.get("score"),
-            feedback_applied=item.get("feedback_applied", False),
-        ))
-    return out
+def _deserialize_trace(raw: dict | None) -> AnswerTrace | None:
+    if raw is None:
+        return None
+    return AnswerTrace(
+        quest_name=raw.get("quest_name", ""),
+        answer_index=raw.get("answer_index", -1),
+        answerer_id=raw.get("answerer_id", ""),
+        node_names=raw.get("node_names", []),
+        edge_refs=[tuple(p) for p in raw.get("edge_refs", [])],
+        score=raw.get("score"),
+        feedback_applied=raw.get("feedback_applied", False),
+    )

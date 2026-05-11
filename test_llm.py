@@ -2,6 +2,7 @@
 from mgraph import MGraph, Node
 from operators import Operator
 from quest_board import QuestBoard
+from questnode import AnswerNode
 from prompts import (
     build_answer_prompt,
     build_question_prompt,
@@ -69,8 +70,8 @@ def test_parse_score_json():
 def test_ask_with_content():
     """提供 content 时直接使用。"""
     g = MGraph()
-    anchor = g.add_node(Node("op_alice", mg=g))
-    op = Operator("alice", anchor)
+    n0 = g.add_node(Node("content_x", mg=g))
+    op = Operator("alice", n0)
     board = QuestBoard()
     quest = op.ask(g, board, "自定义问题")
     assert quest.content == "自定义问题"
@@ -79,8 +80,8 @@ def test_ask_with_content():
 def test_ask_without_content_and_no_llm_raises():
     """没有 llm_client 且没有 content 时报错。"""
     g = MGraph()
-    anchor = g.add_node(Node("op_alice", mg=g))
-    op = Operator("alice", anchor)
+    n0 = g.add_node(Node("content_x", mg=g))
+    op = Operator("alice", n0)
     board = QuestBoard()
     import pytest
     with pytest.raises(ValueError, match="ask requires content"):
@@ -101,29 +102,30 @@ def test_build_answer_prompt_returns_correct_structure():
     assert "材料内容" in messages[1]["content"]
 
 
-# ── answer_quest 向后兼容 ────────────────────────
+# ── answer_quest ─────────────────────────────────
 
 
 def test_answer_quest_fallback_without_llm():
     """没有 llm_client 时，使用规则模板。"""
     g = MGraph()
-    anchor = g.add_node(Node("op_bob", mg=g))
-    op = Operator("bob", anchor)
+    n0 = g.add_node(Node("content_b", mg=g))
+    op = Operator("bob", n0)
     board = QuestBoard()
     quest = board.post("alice", "test question?", g)
-    idx = op.answer_quest(quest, board, g)
-    assert "bob answers" in quest.answers[idx]
+    ans = op.answer_quest(quest, board, g)
+    assert isinstance(ans, AnswerNode)
+    assert "bob answers" in ans.content
 
 
 def test_answer_quest_with_explicit_text():
     """传入 answer_text 时直接使用。"""
     g = MGraph()
-    anchor = g.add_node(Node("op_bob", mg=g))
-    op = Operator("bob", anchor)
+    n0 = g.add_node(Node("content_b", mg=g))
+    op = Operator("bob", n0)
     board = QuestBoard()
     quest = board.post("alice", "q?", g)
-    idx = op.answer_quest(quest, board, g, answer_text="自定义答案")
-    assert quest.answers[idx] == "自定义答案"
+    ans = op.answer_quest(quest, board, g, answer_text="自定义答案")
+    assert ans.content == "自定义答案"
 
 
 # ── 评分 prompt ──────────────────────────────────
@@ -145,31 +147,33 @@ def test_build_score_prompt_without_reference():
     assert "参考答案" not in messages[1]["content"]
 
 
-# ── score_answer 向后兼容 ────────────────────────
+# ── score_answer ─────────────────────────────────
 
 
 def test_score_answer_with_explicit_scores():
     """显式传入评分时，直接使用。"""
     g = MGraph()
-    anchor = g.add_node(Node("op_alice", mg=g))
-    alice = Operator("alice", anchor)
-    bob = Operator("bob", anchor)
+    n0 = g.add_node(Node("content_a", mg=g))
+    alice = Operator("alice", n0)
+    bob = Operator("bob", n0)
     board = QuestBoard()
     quest = board.post("alice", "q?", g)
-    bob.answer_quest(quest, board, g)
+    ans = bob.answer_quest(quest, board, g)
 
     alice.score_answer(quest, "bob", 80, 70, g, board)
-    assert quest.scores[0] == (80, 70)
+    assert ans.match_score == 80
+    assert ans.novelty_score == 70
 
 
 def test_score_answer_without_scores_and_no_llm_raises():
     """没有 llm_client 且没有显式评分时报错。"""
     g = MGraph()
-    anchor = g.add_node(Node("op_alice", mg=g))
-    op = Operator("alice", anchor)
+    n0 = g.add_node(Node("content_a", mg=g))
+    op = Operator("alice", n0)
     board = QuestBoard()
     quest = board.post("alice", "q?", g)
+    op.answer_quest(quest, board, g, answer_text="dummy")
 
     import pytest
     with pytest.raises(ValueError, match="score_answer requires"):
-        op.score_answer(quest, "bob", graph=g, board=board)
+        op.score_answer(quest, "alice", graph=g, board=board)

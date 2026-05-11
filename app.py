@@ -4,8 +4,33 @@ import os
 import time
 from pathlib import Path
 
+try:
+    import huggingface_hub
+
+    if not hasattr(huggingface_hub, "HfFolder"):
+        class _HfFolder:
+            @staticmethod
+            def get_token():
+                return None
+
+            @staticmethod
+            def save_token(token):
+                return None
+
+            @staticmethod
+            def delete_token():
+                return None
+
+        huggingface_hub.HfFolder = _HfFolder
+
+    if not hasattr(huggingface_hub, "whoami"):
+        huggingface_hub.whoami = lambda *args, **kwargs: None
+except Exception:
+    pass
+
 import gradio as gr
 import matplotlib
+import pandas as pd
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -26,7 +51,7 @@ from mgraph import MGraph, Node
 from operators import Operator
 from persistence import save_graph, load_graph, _md_to_node
 from quest_board import QuestBoard
-from questnode import QuestNode
+from questnode import AnswerNode, QuestNode
 from importer import import_materials
 
 # ── 常量 ────────────────────────────────────────────
@@ -41,7 +66,6 @@ def empty_state():
         "graph": None,
         "board": None,
         "operators": None,
-        "anchors": None,
         "config": None,
         "llm_client": None,
         "round": 0,
@@ -75,6 +99,8 @@ def render_graph(graph):
         label = n.name
         if isinstance(n, QuestNode):
             label = f"Q: {n.name}"
+        elif isinstance(n, AnswerNode):
+            label = f"A: {n.name}"
         G.add_node(n.name)
         node_labels[n.name] = label
 
@@ -90,8 +116,9 @@ def render_graph(graph):
     weights = [max(G[u][v]["weight"] * 4, 0.3) for u, v in G.edges()]
 
     quest_nodes = {n.name for n in graph.V if isinstance(n, QuestNode)}
+    answer_nodes = {n.name for n in graph.V if isinstance(n, AnswerNode)}
     node_colors = [
-        "#ffcccc" if n in quest_nodes else "lightblue"
+        "#ffcccc" if n in quest_nodes else "#ccffcc" if n in answer_nodes else "lightblue"
         for n in G.nodes()
     ]
 
@@ -147,39 +174,47 @@ def build_stats(graph, board, operators, round_idx):
 
 def build_quest_table(board):
     if board is None:
-        return [], []
+        return (
+            pd.DataFrame(columns=["Quest", "提问者", "内容", "回答数"]),
+            pd.DataFrame(columns=["Quest", "提问者", "内容", "回答数", "平均匹配度", "平均新颖度"]),
+        )
 
     active_rows = []
     for q in board.active:
+        answers = q.get_answers()
         active_rows.append({
             "Quest": q.name,
             "提问者": q.quester_id,
             "内容": q.content[:50],
-            "回答数": len(q.answers),
+            "回答数": len(answers),
         })
 
     completed_rows = []
     for q in board.completed:
-        scored = [s for s in q.scores if s is not None]
-        avg_match = sum(s[0] for s in scored) / len(scored) if scored else 0
-        avg_novel = sum(s[1] for s in scored) / len(scored) if scored else 0
+        answers = q.get_answers()
+        scored = [a for a in answers if a.match_score is not None]
+        avg_match = sum(a.match_score for a in scored) / len(scored) if scored else 0
+        avg_novel = sum(a.novelty_score for a in scored) / len(scored) if scored else 0
         completed_rows.append({
             "Quest": q.name,
             "提问者": q.quester_id,
             "内容": q.content[:50],
-            "回答数": len(q.answers),
+            "回答数": len(answers),
             "平均匹配度": f"{avg_match:.1f}",
             "平均新颖度": f"{avg_novel:.1f}",
         })
 
-    return active_rows, completed_rows
+    return pd.DataFrame(active_rows), pd.DataFrame(completed_rows)
 
 
 # ── 节点/边表格 ─────────────────────────────────────
 
 def build_graph_tables(graph):
     if graph is None:
-        return [], []
+        return (
+            pd.DataFrame(columns=["名称", "类型", "出度", "入度", "内容预览"]),
+            pd.DataFrame(columns=["源", "目标", "权重"]),
+        )
 
     nodes = []
     for n in graph.V:
@@ -199,7 +234,7 @@ def build_graph_tables(graph):
             "权重": f"{e.value:.4f}",
         })
 
-    return nodes, edges
+    return pd.DataFrame(nodes), pd.DataFrame(edges)
 
 
 # ── 问答详情 ────────────────────────────────────────
@@ -217,38 +252,65 @@ def build_quest_detail(board, quest_name):
 
     lines = [f"### {q.name}", f"**提问者**: {q.quester_id}", "", f"**内容**:\n\n{q.content}", ""]
 
-    for i, (ans, fid, score, trace) in enumerate(
-        zip(q.answers, q.from_ids, q.scores, q.answer_traces)
-    ):
+    for i, ans in enumerate(q.get_answers()):
         lines.append("---")
-        lines.append(f"**回答 #{i}** — {fid}")
-        lines.append(f"> {ans}")
-        if score:
-            lines.append(f"评分: 匹配度={score[0]:.0f}, 新颖度={score[1]:.0f}")
-        if trace:
-            path = " -> ".join(trace.node_names) if trace.node_names else "(空)"
+        lines.append(f"**回答 #{i}** — {ans.answerer_id}")
+        lines.append(f"> {ans.content}")
+        if ans.match_score is not None:
+            lines.append(f"评分: 匹配度={ans.match_score:.0f}, 新颖度={ans.novelty_score:.0f}")
+        if ans.trace:
+            path = " -> ".join(ans.trace.node_names) if ans.trace.node_names else "(空)"
             lines.append(f"阅读路径: {path}")
         lines.append("")
 
     return "\n".join(lines)
 
 
-# ── 内部辅助：从 .md 文件重建锚点 ─────────────────────
+def _quest_detail_from_selection(table, state, evt: gr.SelectData):
+    """从 Quest 表格选择事件中提取 Quest 名称并返回详情。"""
+    quest_name = ""
 
-def _rebuild_anchors(graph, operators):
-    """从图中查找或创建 Operator 锚点节点。"""
-    anchors = {}
-    for name in operators.keys():
-        anchor_name = f"op_{name}"
-        found = None
-        for n in graph.V:
-            if n.name == anchor_name:
-                found = n
-                break
-        if found is None:
-            found = graph.add_node(Node(anchor_name, mg=graph))
-        anchors[name] = found
-    return anchors
+    row_value = getattr(evt, "row_value", None)
+    if isinstance(row_value, dict):
+        quest_name = str(row_value.get("Quest", "")).strip()
+    elif isinstance(row_value, (list, tuple)) and row_value:
+        quest_name = str(row_value[0]).strip()
+
+    if not quest_name:
+        value = getattr(evt, "value", None)
+        if isinstance(value, str):
+            quest_name = value.strip()
+        elif isinstance(value, (list, tuple)) and value:
+            quest_name = str(value[0]).strip()
+
+    if not quest_name and isinstance(table, pd.DataFrame) and not table.empty:
+        try:
+            index = evt.index[0] if isinstance(evt.index, tuple) else evt.index
+            if isinstance(index, int) and 0 <= index < len(table) and "Quest" in table.columns:
+                quest_name = str(table.iloc[index]["Quest"]).strip()
+        except Exception:
+            pass
+
+    if not quest_name:
+        return "### Quest 详情\n\n_(点击表格中的 Quest 查看详情)_"
+
+    return build_quest_detail(state["board"], quest_name)
+
+
+# ── 内部辅助：算子绑定到图中第一个可用的内容节点 ──────
+
+def _bind_operators_to_graph(operators, graph):
+    """将每个算子绑定到图中第一个非 quest、非 answer 的节点。"""
+    content_nodes = [n for n in graph.V
+                     if not isinstance(n, QuestNode)
+                     and not isinstance(n, AnswerNode)]
+    if not content_nodes:
+        return
+    for op in operators.values():
+        try:
+            _ = op.current.get()
+        except Exception:
+            op.bind(content_nodes[0])
 
 
 # ── 内部辅助：从 data/ 目录引导加载节点（无 meta 时） ──
@@ -280,17 +342,26 @@ def _bootstrap_graph(data_dir):
     return graph, node_map
 
 
+def _create_llm_client(api_key, model_name):
+    """用控制台输入或环境变量创建可用的 LLMClient。"""
+    if not api_key.strip():
+        api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+    if not api_key:
+        raise gr.Error("请提供 API Key，或设置环境变量 DEEPSEEK_API_KEY")
+
+    config = Config(api_key=api_key.strip(), model=model_name)
+    if not config.validate():
+        raise gr.Error("API Key 无效")
+
+    return config, LLMClient(config)
+
+
 # ── 回调：初始化系统 ─────────────────────────────────
 
 def init_system(data_dir, api_key, model_name, state):
     state = dict(state)
     state["logs"] = []
     state["data_dir"] = data_dir
-
-    if not api_key.strip():
-        api_key = os.environ.get("DEEPSEEK_API_KEY", "")
-    if not api_key:
-        raise gr.Error("请提供 API Key，或设置环境变量 DEEPSEEK_API_KEY")
 
     data_path = Path(data_dir)
     meta_graph = data_path / "meta" / "graph.json"
@@ -305,8 +376,8 @@ def init_system(data_dir, api_key, model_name, state):
         log(state, f"[加载] 从 {data_dir}/ 加载: {len(graph.V)} 节点, {len(graph.E)} 边")
         log(state, f"  Operator: {', '.join(operators.keys())}")
 
-        # 重建锚点
-        anchors = _rebuild_anchors(graph, operators)
+        # 算子绑定到图中内容节点（若当前指针无效）
+        _bind_operators_to_graph(operators, graph)
 
         # 恢复轮次
         round_idx = metadata.get("round", 0) if metadata else 0
@@ -319,27 +390,18 @@ def init_system(data_dir, api_key, model_name, state):
 
         log(state, f"[引导] 从 {data_dir}/ 加载 {len(graph.V)} 个节点（无已有状态）")
 
-        # 创建 Operator 和锚点
+        # 创建 Operator，绑定到第一个内容节点
         operators = {}
-        anchors = {}
-        anchor_names = {f"op_{name}" for name in OPERATOR_NAMES}
-        for name in OPERATOR_NAMES:
-            anchor = graph.add_node(Node(f"op_{name}", mg=graph))
-            op = Operator(name)
-            op.bind(anchor)
-            operators[name] = op
-            anchors[name] = anchor
-
-        # 锚点连接到所有非锚点、非 quest 节点
-        for anchor_name, anchor in anchors.items():
-            for cn in graph.V:
-                if cn.name not in anchor_names and not isinstance(cn, QuestNode):
-                    anchor.link_to(cn, 1.0)
-
-        # 材料节点之间初始连接
         content_nodes = [n for n in graph.V
                          if not isinstance(n, QuestNode)
-                         and n.name not in anchor_names]
+                         and not isinstance(n, AnswerNode)]
+        for name in OPERATOR_NAMES:
+            op = Operator(name)
+            if content_nodes:
+                op.bind(content_nodes[0])
+            operators[name] = op
+
+        # 材料节点之间初始连接
         for u in content_nodes:
             for v in content_nodes:
                 if u is not v and v.name not in [e.target.name for e in u.outlinks]:
@@ -352,10 +414,7 @@ def init_system(data_dir, api_key, model_name, state):
         log(state, f"  Operator: {', '.join(operators.keys())}")
 
     # ── LLM 客户端 ──
-    config = Config(api_key=api_key.strip(), model=model_name)
-    if not config.validate():
-        raise gr.Error("API Key 无效")
-    llm_client = LLMClient(config)
+    config, llm_client = _create_llm_client(api_key, model_name)
     log(state, f"[LLM] 已连接 — 模型: {model_name}")
 
     # 注入 LLM 客户端到所有 operator
@@ -365,7 +424,6 @@ def init_system(data_dir, api_key, model_name, state):
     state["graph"] = graph
     state["board"] = board
     state["operators"] = operators
-    state["anchors"] = anchors
     state["config"] = config
     state["llm_client"] = llm_client
     state["round"] = round_idx
@@ -394,7 +452,6 @@ def run_round(state):
     graph = state["graph"]
     board = state["board"]
     operators = state["operators"]
-    anchors = state["anchors"]
     llm_client = state["llm_client"]
     round_idx = state["round"]
 
@@ -405,20 +462,18 @@ def run_round(state):
     asker_name = op_list[round_idx % len(op_list)]
     asker_op = operators[asker_name]
 
-    # 提问 (LLM 基于阅读路径生成)
-    asker_op.bind(anchors[asker_name])
+    # 提问 (LLM 基于阅读路径生成 — 算子从当前位置开始)
     quest = asker_op.ask(graph, board, content=None)
     log(state, f">> 第 {round_idx + 1} 轮 — [{asker_name}] 提问: 《{quest.content[:80]}》")
 
-    # 回答 (LLM 基于阅读路径生成)
+    # 回答 (LLM 基于阅读路径生成 — 算子从各自当前位置开始)
     for ans_name in op_list:
         if ans_name == asker_name:
             continue
         ans_op = operators[ans_name]
-        ans_op.bind(anchors[ans_name])
-        ans_op.answer_quest(quest, board, graph)
-        trace = quest.answer_traces[-1]
-        answer_preview = quest.answers[-1][:60] if quest.answers else "(空)"
+        ans_node = ans_op.answer_quest(quest, board, graph)
+        trace = ans_node.trace
+        answer_preview = ans_node.content[:60] if ans_node.content else "(空)"
         path_str = " -> ".join(trace.node_names) if trace and trace.node_names else "(直达)"
         log(state, f"  [{ans_name}] 回答: {answer_preview}...")
         log(state, f"          path: {path_str}")
@@ -428,18 +483,16 @@ def run_round(state):
         if ans_name == asker_name:
             continue
         asker_op.score_answer(quest, ans_name, graph=graph, board=board)
-        idx = [i for i, fid in enumerate(quest.from_ids) if fid == ans_name][-1]
-        match_score, novelty_score = quest.scores[idx]
-        avg = (match_score + novelty_score) / 2
-        fb = "positive" if avg > 80 else "negative"
-        log(state, f"  [{asker_name}] -> {ans_name}  [{match_score:.0f}, {novelty_score:.0f}] avg={avg:.0f}  {fb}")
+        ans_node = quest.get_answer_by_id(ans_name)
+        if ans_node and ans_node.match_score is not None:
+            match_score = ans_node.match_score
+            novelty_score = ans_node.novelty_score
+            avg = (match_score + novelty_score) / 2
+            fb = "positive" if avg > 80 else "negative"
+            log(state, f"  [{asker_name}] -> {ans_name}  [{match_score:.0f}, {novelty_score:.0f}] avg={avg:.0f}  {fb}")
 
     # 归一化
     graph.force_normalize()
-
-    # 所有 operator 回到锚点
-    for name in op_list:
-        operators[name].bind(anchors[name])
 
     state["round"] = round_idx + 1
     log(state, f"[OK] 第 {round_idx + 1} 轮完成")
@@ -492,6 +545,25 @@ def save_state_cb(data_dir, state):
     return state, log_join(state)
 
 
+def test_llm_cb(api_key, model_name):
+    """发送固定测试消息，检查当前 API Key / 模型是否可用。"""
+    config, llm_client = _create_llm_client(api_key, model_name)
+    try:
+        reply = llm_client.chat([
+            {"role": "user", "content": "hello,this is a test message"},
+        ])
+        reply_text = reply.strip() if isinstance(reply, str) else str(reply)
+        if not reply_text.strip():
+            reply_text = "(空响应)"
+        return (
+            f"模型: {config.model}\n"
+            f"发送: hello,this is a test message\n"
+            f"回复: {reply_text}"
+        )
+    finally:
+        llm_client.close()
+
+
 # ── 回调：加载 ──────────────────────────────────────
 
 def load_state_cb(data_dir):
@@ -508,9 +580,8 @@ def load_state_cb(data_dir):
     state["initialized"] = True
     state["data_dir"] = data_dir
 
-    # 重建锚点
-    anchors = _rebuild_anchors(graph, operators)
-    state["anchors"] = anchors
+    # 算子绑定到图中内容节点（若当前指针无效）
+    _bind_operators_to_graph(operators, graph)
 
     # 重建 LLM 客户端（需要用户重新提供 API Key）
     state["round"] = metadata.get("round", 0) if metadata else 0
@@ -598,7 +669,17 @@ with gr.Blocks(title="M-Grammaton", css=CSS, theme=gr.themes.Soft()) as demo:
                     label="模型",
                 )
 
-                init_btn = gr.Button("初始化系统", variant="primary", size="lg")
+                with gr.Row():
+                    init_btn = gr.Button("初始化系统", variant="primary", size="lg")
+                    test_llm_btn = gr.Button("测试 LLM", variant="secondary", size="lg")
+
+                llm_test_result = gr.Textbox(
+                    label="LLM 测试结果",
+                    lines=6,
+                    max_lines=12,
+                    interactive=False,
+                    placeholder="点击「测试 LLM」后，这里会显示固定消息 hello,this is a test message 的回复",
+                )
 
             with gr.Column(scale=1):
                 gr.Markdown("### 运行控制")
@@ -646,12 +727,12 @@ with gr.Blocks(title="M-Grammaton", css=CSS, theme=gr.themes.Soft()) as demo:
         quest_detail_md = gr.Markdown("### Quest 详情\n\n_(点击表格中的 Quest 查看详情)_")
 
         active_quests.select(
-            fn=lambda evt, s: build_quest_detail(s["board"], evt.value[0]),
+            fn=_quest_detail_from_selection,
             inputs=[active_quests, state],
             outputs=[quest_detail_md],
         )
         completed_quests.select(
-            fn=lambda evt, s: build_quest_detail(s["board"], evt.value[0]),
+            fn=_quest_detail_from_selection,
             inputs=[completed_quests, state],
             outputs=[quest_detail_md],
         )
@@ -727,6 +808,12 @@ with gr.Blocks(title="M-Grammaton", css=CSS, theme=gr.themes.Soft()) as demo:
     save_btn.click(fn=save_state_cb, inputs=[save_dir, state],
                    outputs=[state, log_box])
 
+    test_llm_btn.click(
+        fn=test_llm_cb,
+        inputs=[api_key, model_name],
+        outputs=[llm_test_result],
+    )
+
     load_btn.click(fn=load_state_cb, inputs=[save_dir],
                    outputs=state_outputs)
 
@@ -742,6 +829,6 @@ with gr.Blocks(title="M-Grammaton", css=CSS, theme=gr.themes.Soft()) as demo:
 if __name__ == "__main__":
     demo.launch(
         server_name="127.0.0.1",
-        server_port=7860,
+        server_port=7863,
         show_error=True,
     )

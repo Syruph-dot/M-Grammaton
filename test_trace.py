@@ -1,6 +1,6 @@
 """Phase 2: AnswerTrace 绑定测试。"""
 from mgraph import MGraph, Node
-from questnode import AnswerTrace, QuestNode
+from questnode import AnswerNode, AnswerTrace, QuestNode
 from quest_board import QuestBoard
 from operators import Operator
 
@@ -32,15 +32,15 @@ def test_submit_answer_with_trace():
     quest = board.post("alice", "test?", g)
 
     trace = AnswerTrace(quest_name=quest.name, answer_index=-1, answerer_id="bob")
-    idx = board.submit_answer(quest, "bob", "answer_text", trace=trace)
+    ans = board.submit_answer(quest, "bob", "answer_text", g, trace=trace)
 
-    assert idx == 0
-    assert quest.answers[idx] == "answer_text"
-    assert quest.from_ids[idx] == "bob"
-    assert quest.scores[idx] is None
-    assert quest.answer_traces[idx] is not None
-    assert quest.answer_traces[idx].answer_index == 0
-    assert quest.answer_traces[idx].answerer_id == "bob"
+    assert isinstance(ans, AnswerNode)
+    assert ans.answerer_id == "bob"
+    assert ans.content == "answer_text"
+    assert ans.match_score is None
+    assert ans.trace is not None
+    assert ans.trace.answer_index == 0
+    assert ans.trace.answerer_id == "bob"
 
 
 def test_submit_answer_without_trace():
@@ -48,52 +48,48 @@ def test_submit_answer_without_trace():
     g = _make_graph()
     quest = board.post("alice", "test?", g)
 
-    idx = board.submit_answer(quest, "bob", "answer_text")
+    ans = board.submit_answer(quest, "bob", "answer_text", g)
 
-    assert quest.answer_traces[idx] is None
+    assert isinstance(ans, AnswerNode)
+    assert ans.trace is None
 
 
-def test_trace_index_alignment():
-    """Multiple answers — traces align by index with answers/from_ids/scores."""
+def test_multiple_answers_order():
+    """Multiple answers — each as independent AnswerNode."""
     board = QuestBoard()
     g = _make_graph()
     quest = board.post("alice", "test?", g)
 
-    # bob answers first
-    board.submit_answer(quest, "bob", "bob_ans",
+    board.submit_answer(quest, "bob", "bob_ans", g,
                         trace=AnswerTrace(quest.name, -1, "bob"))
-    # carol answers second
-    board.submit_answer(quest, "carol", "carol_ans",
+    board.submit_answer(quest, "carol", "carol_ans", g,
                         trace=AnswerTrace(quest.name, -1, "carol"))
 
-    assert len(quest.answers) == 2
-    assert len(quest.answer_traces) == 2
-    assert quest.answer_traces[0].answerer_id == "bob"
-    assert quest.answer_traces[1].answerer_id == "carol"
-    assert quest.answer_traces[0].answer_index == 0
-    assert quest.answer_traces[1].answer_index == 1
+    answers = quest.get_answers()
+    assert len(answers) == 2
+    assert answers[0].answerer_id == "bob"
+    assert answers[1].answerer_id == "carol"
+    assert answers[0].trace.answer_index == 0
+    assert answers[1].trace.answer_index == 1
 
 
 def test_answer_quest_creates_trace():
     """Operator.answer_quest() creates a trace with reading path data."""
     g = MGraph()
-    anchor = g.add_node(Node("op_bob", mg=g))
-    op = Operator("bob", anchor)
+    n0 = g.add_node(Node("content_a", mg=g))
+    op = Operator("bob", n0)
 
     board = QuestBoard()
     quest = board.post("alice", "will bob answer?", g)
 
-    idx = op.answer_quest(quest, board, g)
+    ans = op.answer_quest(quest, board, g)
 
-    # The trace was stored with path data from read_for_quest()
-    trace = quest.answer_traces[idx]
-    assert trace is not None
-    assert trace.answerer_id == "bob"
-    assert trace.quest_name == quest.name
-    assert trace.answer_index == idx
-    # Even without outlinks, trace includes the starting node
-    assert len(trace.node_names) >= 1
-    assert trace.node_names[0] == "op_bob"
+    assert isinstance(ans, AnswerNode)
+    assert ans.trace is not None
+    assert ans.trace.answerer_id == "bob"
+    assert ans.trace.quest_name == quest.name
+    assert len(ans.trace.node_names) >= 1
+    assert ans.trace.node_names[0] == "content_a"
 
 
 def test_answer_quest_trace_has_edges_when_path_exists():
@@ -111,9 +107,9 @@ def test_answer_quest_trace_has_edges_when_path_exists():
     board = QuestBoard()
     quest = board.post("alice", "q?", g)
 
-    idx = op.answer_quest(quest, board, g)
-    trace = quest.answer_traces[idx]
+    ans = op.answer_quest(quest, board, g)
 
-    assert len(trace.node_names) >= 2  # start + at least one step
-    assert len(trace.edge_refs) >= 1   # at least one edge
-    assert trace.edge_refs[0] == ("start", "mid")
+    assert ans.trace is not None
+    assert len(ans.trace.node_names) >= 2
+    assert len(ans.trace.edge_refs) >= 1
+    assert ans.trace.edge_refs[0] == ("start", "mid")

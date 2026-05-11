@@ -3,6 +3,7 @@
 from mgraph import MGraph, Node
 from operators import Operator
 from quest_board import QuestBoard
+from questnode import AnswerNode
 import matplotlib.pyplot as plt
 import networkx as nx
 
@@ -26,10 +27,11 @@ def print_quest_table(board):
     print(f"  {'Quest':<18} {'Quester':<10} {'Answers':<8} {'Avg Match':<10} {'Avg Novel':<10}")
     print(f"  {'-'*56}")
     for q in board.active + board.completed:
-        scored = [s for s in q.scores if s is not None]
+        answers = q.get_answers()
+        scored = [a for a in answers if a.match_score is not None]
         if scored:
-            avg_match = sum(s[0] for s in scored) / len(scored)
-            avg_novel = sum(s[1] for s in scored) / len(scored)
+            avg_match = sum(a.match_score for a in scored) / len(scored)
+            avg_novel = sum(a.novelty_score for a in scored) / len(scored)
         else:
             avg_match = avg_novel = 0
         answered = len(scored)
@@ -81,21 +83,30 @@ def main():
         for name in ["Alice", "Bob", "Carol", "Dave"]
     }
 
-    # 锚定每个 operator 到专属节点
-    # 先清空随机节点，用有意义的结构替代
+    # 用有意义的内容节点替换随机节点
     g.V.clear()
     g.clear_edges()
-    anchors = {}
-    for name, op in operators.items():
-        anchor = g.add_node(Node(f"op_{name}", mg=g))
-        op.bind(anchor)
-        anchors[name] = anchor
+    content_nodes = []
+    for i in range(4):
+        node = g.add_node(Node(f"content_{i}", kind="document",
+                                content=f"知识材料 #{i}", mg=g))
+        content_nodes.append(node)
+
+    # 内容节点之间全连接
+    for u in content_nodes:
+        for v in content_nodes:
+            if u is not v:
+                u.link_to(v, 1.0)
+
+    # 算子绑定到第一个内容节点
+    for op in operators.values():
+        op.bind(content_nodes[0])
 
     board = QuestBoard()
 
     print("=" * 60)
     print("  M-Grammaton 问答模拟")
-    print("  Q&A 循环 → 边权重自组织")
+    print("  Q&A 循环 -> 边权重自组织")
     print("=" * 60)
     print()
 
@@ -111,14 +122,14 @@ def main():
         quest = asker.ask(g, board, content)
         print(f"\n  [{asker_name}] 提问: 『{content}』")
 
-        # ── 回答（回答者直接回答本轮 quest）──
+        # ── 回答 ──
         for ans_name, ans_op in operators.items():
             if ans_name == asker_name:
                 continue
-            ans_op.answer_quest(quest, board, g)
-            trace = quest.answer_traces[-1]
+            ans_node = ans_op.answer_quest(quest, board, g)
+            trace = ans_node.trace
             path_str = " -> ".join(trace.node_names) if trace else "(no trace)"
-            print(f"  [{ans_name}] 回答: {quest.answers[-1][:40]}...")
+            print(f"  [{ans_name}] 回答: {ans_node.content[:40]}...")
             print(f"         path: {path_str}")
 
         # ── 评分 ──
@@ -129,18 +140,12 @@ def main():
             asker.score_answer(quest, ans_name, match_score, novelty_score, g, board)
             avg = (match_score + novelty_score) / 2
             fb = "positive" if avg > 80 else "negative"
-            indices = [i for i, fid in enumerate(quest.from_ids) if fid == ans_name]
-            idx = indices[-1]
-            trace = quest.answer_traces[idx]
-            edges = len(trace.edge_refs) if trace else 0
-            print(f"  [{asker_name}] → {ans_name}  [{match_score}, {novelty_score}]  avg={avg:.0f}  {fb}  edges={edges}")
+            ans_node = quest.get_answer_by_id(ans_name)
+            edges = len(ans_node.trace.edge_refs) if ans_node and ans_node.trace else 0
+            print(f"  [{asker_name}] -> {ans_name}  [{match_score}, {novelty_score}]  avg={avg:.0f}  {fb}  edges={edges}")
 
         # ── 归一化 ──
         g.force_normalize()
-
-        # ── 所有 operator 回到锚点 ──
-        for op in operators.values():
-            op.bind(anchors[op.id])
 
     # ── 最终统计 ──
     print(f"\n{'='*60}")

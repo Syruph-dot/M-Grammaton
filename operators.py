@@ -2,7 +2,7 @@ from random import randint, uniform
 
 from mgraph import Node, NodePtr, insert_response
 from quest_board import QuestBoard
-from questnode import AnswerTrace, QuestNode
+from questnode import AnswerNode, AnswerTrace, QuestNode
 
 
 class Operator:
@@ -128,7 +128,7 @@ class Operator:
 
     def answer_quest(
         self, quest: QuestNode, board: QuestBoard, graph, answer_text: str = None
-    ) -> int:
+    ) -> AnswerNode:
         # 先阅读路径
         node_names, path_edges, context_text = self.read_for_quest()
         # 导航到 quest 节点
@@ -146,7 +146,7 @@ class Operator:
             node_names=node_names,
             edge_refs=path_edges,
         )
-        return board.submit_answer(quest, self.id, answer_text, trace=trace)
+        return board.submit_answer(quest, self.id, answer_text, graph, trace=trace)
 
     def _llm_answer(self, quest: QuestNode, context_text: str) -> str:
         """使用 LLM 生成答案。"""
@@ -155,12 +155,9 @@ class Operator:
         messages = build_answer_prompt(self.id, quest.content, context_text)
         return self.llm_client.chat(messages) or f"{self.id} answers '{quest.content}'"
 
-    def _llm_score(self, quest: QuestNode, answerer_id: str) -> tuple[float, float]:
+    def _llm_score(self, quest: QuestNode, answer_text: str) -> tuple[float, float]:
         """使用 LLM 对回答评分，返回 (match_score, novelty_score)。"""
         from prompts import build_score_prompt
-
-        idx = [i for i, fid in enumerate(quest.from_ids) if fid == answerer_id][-1]
-        answer_text = quest.answers[idx] if idx < len(quest.answers) else ""
 
         messages = build_score_prompt(quest.content, answer_text)
         result = self.llm_client.chat_json(messages)
@@ -178,23 +175,24 @@ class Operator:
         graph=None,
         board: QuestBoard | None = None,
     ) -> None:
+        ans_node = quest.get_answer_by_id(answerer_id)
+        if ans_node is None:
+            return
+
+        answer_text = ans_node.content
+
         if match_score is None or novelty_score is None:
             if self.llm_client is not None:
-                match_score, novelty_score = self._llm_score(quest, answerer_id)
+                match_score, novelty_score = self._llm_score(quest, answer_text)
             else:
                 raise ValueError(
                     "score_answer requires match_score and novelty_score "
                     "when no llm_client"
                 )
 
-        board.set_score(quest, answerer_id, match_score, novelty_score)
+        board.set_score(ans_node, match_score, novelty_score)
 
-        # 找到该回答对应的 answer index 和 trace
-        indices = [i for i, fid in enumerate(quest.from_ids) if fid == answerer_id]
-        if not indices:
-            return
-        idx = indices[-1]
-        trace = quest.answer_traces[idx] if idx < len(quest.answer_traces) else None
+        trace = ans_node.trace
         if trace is None or trace.feedback_applied:
             return
 
