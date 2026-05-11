@@ -148,6 +148,7 @@ def build_stats(graph, board, operators, round_idx):
 
     quest_count = len(board.active) + len(board.completed) if board else 0
 
+    # TODO [GUI Phase E]: 在 Operator 状态行显示 MBTI 标签、stk 统计、标签计数
     op_lines = []
     if operators:
         for name, op in operators.items():
@@ -159,6 +160,8 @@ def build_stats(graph, board, operators, round_idx):
             op_lines.append(f"- **{name}** -> `{cur_name}` (已提 {len(op.submitted_quests)} 问)")
 
     op_text = "\n".join(op_lines)
+
+    # TODO [GUI Phase E]: 添加全局 stk 总条目数和标签总数统计
 
     return (
         f"### 统计信息\n\n"
@@ -179,6 +182,7 @@ def build_quest_table(board):
             pd.DataFrame(columns=["Quest", "提问者", "内容", "回答数", "平均匹配度", "平均新颖度"]),
         )
 
+    # TODO [GUI Phase E]: 活跃/已完成 Quest 表格添加「追问深度」列
     active_rows = []
     for q in board.active:
         answers = q.get_answers()
@@ -216,6 +220,7 @@ def build_graph_tables(graph):
             pd.DataFrame(columns=["源", "目标", "权重"]),
         )
 
+    # TODO [GUI Phase E]: 在节点表格中添加「标签」列
     nodes = []
     for n in graph.V:
         nodes.append({
@@ -240,6 +245,7 @@ def build_graph_tables(graph):
 # ── 问答详情 ────────────────────────────────────────
 
 def build_quest_detail(board, quest_name):
+    # TODO [GUI Phase E]: 在 Quest 详情中显示追问链（parent quest 引用 + 追问嵌套层级）
     if board is None:
         return "_(无数据)_"
 
@@ -369,6 +375,7 @@ def init_system(data_dir, api_key, model_name, state):
     if meta_graph.is_file():
         # ── 从 data/ 加载已有状态 ──
         try:
+            # TODO [GUI Phase E]: load_graph 返回 5 值，含 tag_manager
             graph, board, operators, metadata = load_graph(data_dir)
         except Exception as e:
             raise gr.Error(f"加载 data/ 失败: {e}")
@@ -455,6 +462,9 @@ def run_round(state):
     llm_client = state["llm_client"]
     round_idx = state["round"]
 
+    # TODO [GUI Phase E]: 每轮结束后触发 stk decay（根据轮次判断）
+    # TODO [GUI Phase E]: 支持 discussion_depth 参数控制追问深度
+
     if llm_client is None:
         raise gr.Error("LLM 客户端未就绪，请重新初始化")
 
@@ -536,6 +546,7 @@ def save_state_cb(data_dir, state):
     if cfg:
         metadata["llm_model"] = cfg.model
 
+    # TODO [GUI Phase E]: save_graph 增加 tag_manager 参数
     save_graph(state["graph"], state["board"], state["operators"],
                data_dir, metadata=metadata)
 
@@ -571,6 +582,7 @@ def load_state_cb(data_dir):
     if not (data_path / "meta" / "graph.json").is_file():
         raise gr.Error(f"未找到有效的保存状态: {data_dir}/meta/graph.json")
 
+    # TODO [GUI Phase E]: load_graph 返回 5 值，含 tag_manager
     graph, board, operators, metadata = load_graph(data_dir)
 
     state = empty_state()
@@ -683,6 +695,7 @@ with gr.Blocks(title="M-Grammaton", css=CSS, theme=gr.themes.Soft()) as demo:
 
             with gr.Column(scale=1):
                 gr.Markdown("### 运行控制")
+                # TODO [GUI Phase E]: 添加 MBTI 标签显示 + stk decay 触发按钮
                 with gr.Row():
                     run_btn = gr.Button("运行一轮", variant="secondary", size="lg")
                     run_n_btn = gr.Button("运行 N 轮", size="lg")
@@ -759,6 +772,8 @@ with gr.Blocks(title="M-Grammaton", css=CSS, theme=gr.themes.Soft()) as demo:
     # ═══════════════════════════════════════════════
     # Tab 5: 文段导入
     # ═══════════════════════════════════════════════
+    # TODO [GUI Phase E]: Tab 6 — 标签管理（标签列表、创建、关联节点、概念关联图）
+
     with gr.Tab("文段导入"):
         gr.Markdown("### 将原始 Markdown 材料导入为 data/ 节点文件")
 
@@ -794,6 +809,7 @@ with gr.Blocks(title="M-Grammaton", css=CSS, theme=gr.themes.Soft()) as demo:
     state_outputs = [state, log_box, graph_plot, stats_md,
                      active_quests, completed_quests, quest_detail_md,
                      node_table, edge_table]
+    # TODO [GUI Phase E]: 在 state_outputs 中添加 tag_table，更新所有回调的返回值
 
     init_btn.click(
         fn=init_system,
