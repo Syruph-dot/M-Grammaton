@@ -147,6 +147,11 @@ def main():
         # ── 归一化 ──
         g.force_normalize()
 
+        # ── stk 腐烂 ──
+        decayed = g.decay_stk()
+        if decayed > 0:
+            print(f"  [遗忘] stk 腐烂: {decayed} 条过期反馈已清除")
+
     # ── 最终统计 ──
     print(f"\n{'='*60}")
     print("  最终统计")
