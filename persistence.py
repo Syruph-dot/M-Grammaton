@@ -10,6 +10,7 @@ import yaml
 from pathlib import Path
 
 from mgraph import MGraph, Node, Edge, binResponse
+from persona import Persona
 from questnode import AnswerNode, QuestNode, AnswerTrace
 from quest_board import QuestBoard
 from operators import Operator
@@ -72,6 +73,7 @@ def save_graph(graph: MGraph, board: QuestBoard,
         ops_data[op_id] = {
             "current_node": cur,
             "submitted_quests": [q.name for q in op.submitted_quests],
+            "persona_mbti": op.persona.mbti if op.persona else None,
         }
     _write_meta(meta_dir, "operators.json", {"operators": ops_data})
 
@@ -150,7 +152,9 @@ def load_graph(data_dir: str = "data") -> tuple[MGraph, QuestBoard, dict[str, Op
     ops_data = _read_meta(meta_dir, "operators.json") or {}
     operators: dict[str, Operator] = {}
     for op_id, odata in ops_data.get("operators", {}).items():
-        op = Operator(str(op_id))
+        persona_mbti = odata.get("persona_mbti")
+        persona = Persona(mbti=persona_mbti) if persona_mbti else None
+        op = Operator(str(op_id), persona=persona)
         cur_name = odata.get("current_node")
         if cur_name and cur_name in node_map:
             op.bind(node_map[cur_name])
