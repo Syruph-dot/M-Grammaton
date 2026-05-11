@@ -12,6 +12,8 @@ class Config:
     base_url: str = "https://api.deepseek.com"
     model: str = "deepseek-v4-flash"
     temperature: float = 0.7
+    request_pool_window_seconds: float = 15.0
+    request_pool_token_budget: int = 250000
 
     def __post_init__(self):
         if not self.api_key:
