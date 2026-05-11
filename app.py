@@ -494,6 +494,11 @@ def run_round(state):
     # 归一化
     graph.force_normalize()
 
+    # stk 腐烂（每轮触发，由内部守卫条件控制是否执行）
+    decayed = graph.decay_stk()
+    if decayed > 0:
+        log(state, f"  [遗忘] stk 腐烂: {decayed} 条过期反馈已清除")
+
     state["round"] = round_idx + 1
     log(state, f"[OK] 第 {round_idx + 1} 轮完成")
 
