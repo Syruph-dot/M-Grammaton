@@ -14,6 +14,7 @@ class Config:
     temperature: float = 0.7
     request_pool_window_seconds: float = 15.0
     request_pool_token_budget: int = 250000
+    data_dir: str = "data"
 
     def __post_init__(self):
         if not self.api_key:
