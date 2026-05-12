@@ -24,9 +24,12 @@ DEFAULT_OPERATOR_NAMES = ["Alice", "Bob", "Carol"]
 
 
 class OperatorRuntime:
+    STK_DECAY_TICKS = 4  # stk >= 100% 后等 N 个 tick 再重检确认
+
     def __init__(self, data_dir: str, model: str, operator_names: list[str] | None = None):
         self.running = False
         self.round = 0
+        self._stk_decay_counter = 0
 
         self.config = Config()
         self.config.model = model
@@ -131,6 +134,39 @@ class OperatorRuntime:
             self.round += 1
             await self.bus.broadcast(ClockTick(round=self.round))
             logger.debug("[Clock] tick round=%d", self.round)
+            await self._check_stk_decay()
+
+    async def _check_stk_decay(self):
+        """延迟重检 stk 栈满载情况。每 tick 调用一次。"""
+        if not self.graph.V:
+            self._stk_decay_counter = 0
+            return
+
+        ratio = len(self.graph.stk) / len(self.graph.V)
+
+        if ratio < 1.0:
+            self._stk_decay_counter = 0
+            return
+
+        # ratio >= 1.0 —— stk 栈满了
+        if self._stk_decay_counter == 0:
+            self._stk_decay_counter = self.STK_DECAY_TICKS
+            logger.info("[Decay] stk 满载 (%.1f%%), %d tick 后重检",
+                        ratio * 100, self.STK_DECAY_TICKS)
+            return
+
+        self._stk_decay_counter -= 1
+
+        if self._stk_decay_counter > 0:
+            return
+
+        # 倒计时归零，执行最终判定
+        ratio = len(self.graph.stk) / len(self.graph.V)
+        if ratio >= 1.0:
+            removed = self.graph.decay_stk()
+            logger.info("[Decay] 触发腐烂: 移除 %d 条 stk 条目", removed)
+        else:
+            logger.debug("[Decay] 重检时 stk 已回落 (%.1f%%), 跳过", ratio * 100)
 
 
 async def main():

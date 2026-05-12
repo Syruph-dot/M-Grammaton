@@ -57,11 +57,12 @@ Operator 的人格配置。4 维 16 型，每个维度生成对应风格描述�
 `base = 0.9 if 'J' in mbti else 0.8`，加 `random.uniform(-0.05, 0.05)` 扰动。
 
 ### stk decay
-MGraph 的 stk 栈可能无限增长。通过延迟重检机制维护栈健康：
+MGraph 的 stk 栈可能无限增长。通过延迟重检机制维护栈健康（编码于 `OperatorRuntime._check_stk_decay()`）：
 - 每 ClockTick 检查 stk 节点占比
-- 占比 ≥ 100% → 启动 N=4 个心跳周期的延迟重检计数器
+- 占比 ≥ 100% → 启动 STK_DECAY_TICKS=4 个心跳周期的延迟重检计数器
+- 计数器递减期间占比降回 100% 以下 → 重置计数器，取消 decay
 - 计数归零时再次检查：若占比仍 ≥ 100% → 触发 `MGraph.decay_stk()`
-- 期间占比降回 100% 以下 → 重置计数器
+- 此机制实质是 Schmitt 触发器的简化版（去掉了回差，保留了延迟确认）
 
 ### 追问（被移除）
 追问不建模为独立数据结构。Operator 评分后如认为答案不佳，通过自然决策循环中的 `ask()` 即可隐式实现追问。`MAX_ACTIVE_QUESTS` 天然约束深度。
