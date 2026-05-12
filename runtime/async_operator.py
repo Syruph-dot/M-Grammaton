@@ -59,7 +59,7 @@ class AsyncOperator:
                 inbox = self.runtime.bus
                 for msg in inbox.drain(self.id):
                     await self._handle(msg)
-                    if random() > self.patience: break
+                    if random.random() > self.patience: break
 
                 graph = self.runtime.graph
                 board = self.runtime.board

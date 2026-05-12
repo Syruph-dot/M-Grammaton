@@ -184,7 +184,7 @@ async def main():
     parser.add_argument("--operators", nargs="+", default=DEFAULT_OPERATOR_NAMES, help="Operator 名称列表")
     parser.add_argument("--timeout", type=int, default=60, help="运行时间（秒），0=无限")
     parser.add_argument("--web", action="store_true", help="启动 FastAPI 监控面板")
-    parser.add_argument("--port", type=int, default=8765, help="监控面板端口")
+    parser.add_argument("--port", type=int, default=8763, help="监控面板端口")
     args = parser.parse_args()
 
     monitor = RuntimeMonitor()
