@@ -2,6 +2,7 @@ from random import randint, uniform
 import string
 
 from mgraph import Node, NodePtr, insert_response
+from persona import Persona, random_persona
 from quest_board import QuestBoard
 from questnode import AnswerNode, AnswerTrace, QuestNode
 
@@ -9,7 +10,8 @@ from questnode import AnswerNode, AnswerTrace, QuestNode
 class Operator:
     MAX_ACTIVE_QUESTS = 3
 
-    def __init__(self, id: str = None, current=None, llm_client=None):
+    def __init__(self, id: str = None, current=None, llm_client=None,
+                 persona: Persona | None = None):
         if id is None:
             self.id = f"Operator {randint(0, 1000)}"
         else:
@@ -17,6 +19,7 @@ class Operator:
         self.current = current if isinstance(current, NodePtr) else NodePtr(current)
         self.submitted_quests: list[QuestNode] = []
         self.llm_client = llm_client
+        self.persona = persona if persona is not None else random_persona()
 
     def bind(self, node):
         self.current.bind(node)
@@ -60,7 +63,8 @@ class Operator:
             return "请阅读材料后提出问题。"
 
         if hasattr(self.llm_client, "chat_json"):
-            messages = build_question_prompt(self.id, context_text)
+            messages = build_question_prompt(self.id, context_text,
+                                             mbti=self.persona.mbti)
             qdata = self.llm_client.chat_json(messages)
         else:
             return "LLM 客户端不支持 JSON 模式。"
@@ -157,14 +161,16 @@ class Operator:
         """使用 LLM 生成答案。"""
         from prompts import build_answer_prompt
 
-        messages = build_answer_prompt(self.id, quest.content, context_text)
+        messages = build_answer_prompt(self.id, quest.content, context_text,
+                                       mbti=self.persona.mbti)
         return self.llm_client.chat(messages) or f"{self.id} answers '{quest.content}'"
 
     def _llm_score(self, quest: QuestNode, answer_text: str) -> tuple[float, float]:
         """使用 LLM 对回答评分，返回 (match_score, novelty_score)。"""
         from prompts import build_score_prompt
 
-        messages = build_score_prompt(quest.content, answer_text)
+        messages = build_score_prompt(quest.content, answer_text,
+                                      mbti=self.persona.mbti)
         result = self.llm_client.chat_json(messages)
 
         match = float(result.get("score_match", 50))

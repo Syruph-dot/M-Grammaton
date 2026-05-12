@@ -3,13 +3,17 @@
 # ── 出题 ─────────────────────────────────────────
 
 
-def build_question_prompt(operator_id: str, context: str) -> list[dict]:
+def build_question_prompt(operator_id: str, context: str,
+                           mbti: str | None = None) -> list[dict]:
     """构造出题提示词消息列表。
 
     返回 [system_message, user_message]，可直接传入 LLMClient.chat()。
     """
+    persona_block = _persona_block(mbti, "question") if mbti else ""
+
     system = (
         f"你是知识图谱中的「{operator_id}」Operator。"
+        f"{persona_block}"
         "你的任务：基于给定的材料创作有深度的阅读理解题。\n\n"
         "要求：\n"
         "1. 不得在题干中暗示答案方向（例如「与「材料A」中……是否有内在联系？」这种让人必须答「是」的不行）\n"
@@ -35,6 +39,14 @@ def build_question_prompt(operator_id: str, context: str) -> list[dict]:
         {"role": "system", "content": system},
         {"role": "user", "content": user},
     ]
+
+
+def _persona_block(mbti: str, field: str) -> str:
+    """从 MBTI 类型生成对应场景的行为描述段落。"""
+    from persona import Persona
+    persona = Persona(mbti=mbti)
+    style = getattr(persona, f"{field}_style", "")
+    return f"\n你的认知风格（MBTI {mbti}）：{style}。\n\n"
 
 
 def parse_question_json(raw: str) -> dict | None:
@@ -64,10 +76,14 @@ def format_question_text(qdata: dict) -> str:
 # ── 答题 ─────────────────────────────────────────
 
 
-def build_answer_prompt(operator_id: str, question: str, context: str) -> list[dict]:
+def build_answer_prompt(operator_id: str, question: str, context: str,
+                         mbti: str | None = None) -> list[dict]:
     """构造答题提示词消息列表。"""
+    persona_block = _persona_block(mbti, "answer") if mbti else ""
+
     system = (
         f"你是知识图谱中的「{operator_id}」Operator。"
+        f"{persona_block}"
         "你的任务：回答其他 Operator 提出的阅读理解题。\n\n"
         "要求：\n"
         "1. 回答要基于可参考的材料内容，引用原文作为支撑\n"
@@ -89,14 +105,18 @@ def build_answer_prompt(operator_id: str, question: str, context: str) -> list[d
 
 
 def build_score_prompt(question: str, answer: str,
-                       reference_answer: str | None = None) -> list[dict]:
+                       reference_answer: str | None = None,
+                       mbti: str | None = None) -> list[dict]:
     """构造评分提示词消息列表。"""
+    persona_block = _persona_block(mbti, "score") if mbti else ""
+
     ref_section = ""
     if reference_answer:
         ref_section = f"\n参考答案：\n{reference_answer}"
 
     system = (
         "你是知识图谱中的「评分者」Operator。"
+        f"{persona_block}"
         "你的任务：对其他 Operator 的回答进行评分。\n\n"
         "评分采用两个维度（各 0-100 分）：\n"
         "1. score_match —— 参考答案匹配度：回答是否准确回应了问题\n"

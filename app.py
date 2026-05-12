@@ -157,7 +157,8 @@ def build_stats(graph, board, operators, round_idx):
                 cur_name = op.current.get().name
             except Exception:
                 pass
-            op_lines.append(f"- **{name}** -> `{cur_name}` (已提 {len(op.submitted_quests)} 问)")
+            mbti_tag = f"[{op.persona.mbti}]" if op.persona else ""
+            op_lines.append(f"- **{name}** {mbti_tag} -> `{cur_name}` (已提 {len(op.submitted_quests)} 问)")
 
     op_text = "\n".join(op_lines)
 
