@@ -21,6 +21,9 @@ class Decider(ABC):
 class RandomDecider(Decider):
     MAX_ACTIVE_QUESTS = 3
 
+    def __init__(self, seed=None):
+        self._rng = random.Random(seed)
+
     async def choose(self, operator, graph, board) -> Action:
         own_quests = board.submitted_by(operator.id)
         open_quests = board.available_for(operator.id)
@@ -36,7 +39,7 @@ class RandomDecider(Decider):
         if own_quests:
             choices.append(("score", 0.15))
 
-        chosen = random.choices(
+        chosen = self._rng.choices(
             [c[0] for c in choices],
             weights=[c[1] for c in choices],
             k=1,

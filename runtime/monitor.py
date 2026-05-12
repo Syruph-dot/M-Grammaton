@@ -5,6 +5,7 @@ Monitor 是 Runtime 的一等公民，不是外部观察者。
 """
 
 import asyncio
+import copy
 import time
 from dataclasses import dataclass, field
 
@@ -73,7 +74,7 @@ class RuntimeMonitor:
     # ── 被面板消费 ────────────────────────────────
 
     def snapshot(self) -> dict[str, OperatorSnapshot]:
-        return dict(self._states)
+        return {k: copy.copy(v) for k, v in self._states.items()}
 
     def subscribe(self) -> asyncio.Queue[OperatorSnapshot]:
         q: asyncio.Queue[OperatorSnapshot] = asyncio.Queue(maxsize=64)
