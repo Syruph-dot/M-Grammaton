@@ -21,11 +21,14 @@ class AnswerTrace:
 class QuestNode(Node):
     """问题节点 —— 仅持有问题本身。答案由独立的 AnswerNode 承载。"""
 
-    def __init__(self, name: str, quester_id: str, content: str = "This is a test quest node{}".format(randint(0, 1000))):
+    def __init__(self, name: str, quester_id: str, content: str = "This is a test quest node{}".format(randint(0, 1000)),
+                 parent_quest: str | None = None, depth: int = 0):
         super().__init__(name, kind="quest")
         self.name = name
         self.quester_id = quester_id
         self.content = content
+        self.parent_quest = parent_quest
+        self.depth = depth
 
     def get_answers(self):
         """返回所有链接到此 quest 的 AnswerNode（按 outlinks 顺序）。"""

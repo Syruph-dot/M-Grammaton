@@ -339,6 +339,41 @@ class MGraph():
             for link in node.outlinks:
                 link.set_raw_value(link.value / total)
 
+    def decay_stk(self, decay_fraction: float = 0.15,
+                  min_nodes_ratio: float = 1.0) -> int:
+        """腐烂 stk 栈底条目 —— 模拟长期遗忘。
+
+        当所有节点的 stk 条目总数 > |V| * min_nodes_ratio 时触发，
+        按每个节点 stk 长度比例分配腐烂额度（含随机扰动），
+        从栈底（最早）开始 FIFO 删除。
+
+        返回腐烂的条目总数。
+        """
+        total = sum(len(n.stk) for n in self.V)
+        if total <= len(self.V) * min_nodes_ratio:
+            return 0
+
+        target = max(1, int(total * decay_fraction))
+        candidates = [n for n in self.V if n.stk]
+        if not candidates:
+            return 0
+
+        weights = [len(n.stk) for n in candidates]
+        total_weight = sum(weights)
+        removed = 0
+
+        for node, w in zip(candidates, weights):
+            exact = target * w / total_weight
+            share = int(exact)
+            # 随机扰动处理小数部分
+            if random() < (exact - share):
+                share += 1
+            if share > 0:
+                node.stk = node.stk[share:]
+                removed += share
+
+        return removed
+
     def clear_edges(self):
         for item in self.V:
             item.outlinks.clear()
@@ -361,6 +396,65 @@ class MGraph():
                     weight = min(1.0,max(0.0, avg + var * gauss(0.0, 1.0)))
                     node.link_to(target, weight)
         self.force_normalize()
+    def decay_stk(self, decay_fraction: float = 0.15,
+                  min_nodes_ratio: float = 1.0) -> int:
+        """腐烂 stk 栈底条目 —— 模拟长期遗忘。
+
+        当所有节点的 stk 条目总数 > |V| * min_nodes_ratio 时触发，
+        按每个节点 stk 长度比例分配腐烂额度，
+        再用最大余数法补齐到精确目标值，从栈底（最早）开始 FIFO 删除。
+
+        返回腐烂的条目总数。
+        """
+        total = sum(len(n.stk) for n in self.V)
+        if total <= len(self.V) * min_nodes_ratio:
+            return 0
+
+        target = max(1, int(total * decay_fraction))
+        if decay_fraction <= 0:
+            return 0
+        target = min(total, target)
+
+        candidates = [n for n in self.V if n.stk]
+        if not candidates:
+            return 0
+
+        weights = [len(n.stk) for n in candidates]
+        total_weight = sum(weights)
+        if target >= total_weight:
+            for node in candidates:
+                node.stk = []
+            return total_weight
+
+        shares = []
+        remainders = []
+        removed = 0
+
+        for index, (node, w) in enumerate(zip(candidates, weights)):
+            exact = target * w / total_weight
+            share = int(exact)
+            shares.append(share)
+            remainders.append((exact - share, index))
+            removed += share
+
+        leftover = target - removed
+        if leftover > 0:
+            order = sorted(
+                range(len(candidates)),
+                key=lambda index: (remainders[index][0], random()),
+                reverse=True,
+            )
+            for index in order[:leftover]:
+                shares[index] += 1
+
+        removed = 0
+        for node, share in zip(candidates, shares):
+            if share > 0:
+                node.stk = node.stk[share:]
+                removed += share
+
+        return removed
+
     def display(self):
         for node in self.V:
             print(f"{node}: {self.V[node]}")

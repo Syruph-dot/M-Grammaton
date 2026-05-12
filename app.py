@@ -53,6 +53,7 @@ from persistence import save_graph, load_graph, _md_to_node
 from quest_board import QuestBoard
 from questnode import AnswerNode, QuestNode
 from importer import import_materials
+from tag_manager import TagManager
 
 # ── 常量 ────────────────────────────────────────────
 
@@ -142,7 +143,7 @@ def render_graph(graph):
 
 # ── 统计信息 ────────────────────────────────────────
 
-def build_stats(graph, board, operators, round_idx):
+def build_stats(graph, board, operators, round_idx, tag_manager=None):
     if graph is None:
         return "### 统计信息\n\n_(尚未初始化)_"
 
@@ -162,14 +163,17 @@ def build_stats(graph, board, operators, round_idx):
 
     op_text = "\n".join(op_lines)
 
-    # TODO [GUI Phase E]: 添加全局 stk 总条目数和标签总数统计
-
+    stk_total = sum(len(n.stk) for n in graph.V)
+    tag_total = tag_manager.total_tag_entries if tag_manager else sum(len(n.tags) for n in graph.V)
+    tag_count = len(tag_manager.all_tags) if tag_manager else len(set.union(*[n.tags for n in graph.V])) if graph.V else 0
     return (
         f"### 统计信息\n\n"
         f"- **节点数**: {len(graph.V)}\n"
         f"- **边数**: {len(graph.E)}\n"
         f"- **Quest 总数**: {quest_count} (活跃 {len(board.active)})\n"
-        f"- **已运行轮次**: {round_idx}\n\n"
+        f"- **已运行轮次**: {round_idx}\n"
+        f"- **STK 总条目**: {stk_total}\n"
+        f"- **标签数**: {tag_count} (总关联 {tag_total})\n\n"
         f"### Operator 状态\n{op_text}"
     )
 
@@ -179,19 +183,21 @@ def build_stats(graph, board, operators, round_idx):
 def build_quest_table(board):
     if board is None:
         return (
-            pd.DataFrame(columns=["Quest", "提问者", "内容", "回答数"]),
-            pd.DataFrame(columns=["Quest", "提问者", "内容", "回答数", "平均匹配度", "平均新颖度"]),
+            pd.DataFrame(columns=["Quest", "提问者", "内容", "回答数", "追问深度"]),
+            pd.DataFrame(columns=["Quest", "提问者", "内容", "回答数", "平均匹配度", "平均新颖度", "追问深度"]),
         )
 
     # TODO [GUI Phase E]: 活跃/已完成 Quest 表格添加「追问深度」列
     active_rows = []
     for q in board.active:
         answers = q.get_answers()
+        depth = getattr(q, "depth", 0)
         active_rows.append({
             "Quest": q.name,
             "提问者": q.quester_id,
             "内容": q.content[:50],
             "回答数": len(answers),
+            "追问深度": depth,
         })
 
     completed_rows = []
@@ -200,6 +206,7 @@ def build_quest_table(board):
         scored = [a for a in answers if a.match_score is not None]
         avg_match = sum(a.match_score for a in scored) / len(scored) if scored else 0
         avg_novel = sum(a.novelty_score for a in scored) / len(scored) if scored else 0
+        depth = getattr(q, "depth", 0)
         completed_rows.append({
             "Quest": q.name,
             "提问者": q.quester_id,
@@ -207,6 +214,7 @@ def build_quest_table(board):
             "回答数": len(answers),
             "平均匹配度": f"{avg_match:.1f}",
             "平均新颖度": f"{avg_novel:.1f}",
+            "追问深度": depth,
         })
 
     return pd.DataFrame(active_rows), pd.DataFrame(completed_rows)
@@ -217,7 +225,7 @@ def build_quest_table(board):
 def build_graph_tables(graph):
     if graph is None:
         return (
-            pd.DataFrame(columns=["名称", "类型", "出度", "入度", "内容预览"]),
+            pd.DataFrame(columns=["名称", "类型", "出度", "入度", "内容预览", "标签"]),
             pd.DataFrame(columns=["源", "目标", "权重"]),
         )
 
@@ -230,6 +238,7 @@ def build_graph_tables(graph):
             "出度": len(n.outlinks),
             "入度": len(n.inlinks),
             "内容预览": n.content[:40] if n.content else "",
+            "标签": ", ".join(sorted(n.tags)) if n.tags else "",
         })
 
     edges = []
@@ -241,6 +250,20 @@ def build_graph_tables(graph):
         })
 
     return pd.DataFrame(nodes), pd.DataFrame(edges)
+
+
+def build_tag_table(tag_manager):
+    """构建标签统计表格。"""
+    if tag_manager is None:
+        return pd.DataFrame(columns=["标签", "关联节点数", "节点列表"])
+    rows = []
+    for tag, nodes in sorted(tag_manager.tag_counts.items()):
+        rows.append({
+            "标签": tag,
+            "关联节点数": nodes,
+            "节点列表": ", ".join(sorted(tag_manager.get_tag_nodes(tag))),
+        })
+    return pd.DataFrame(rows)
 
 
 # ── 问答详情 ────────────────────────────────────────
@@ -258,6 +281,18 @@ def build_quest_detail(board, quest_name):
         return f"未找到 Quest: {quest_name}"
 
     lines = [f"### {q.name}", f"**提问者**: {q.quester_id}", "", f"**内容**:\n\n{q.content}", ""]
+
+    # 追问链信息
+    parent_name = getattr(q, "parent_quest", None)
+    depth = getattr(q, "depth", 0)
+    if parent_name or depth > 0:
+        chain_parts = []
+        if parent_name:
+            chain_parts.append(f"父 Quest: `{parent_name}`")
+        if depth > 0:
+            chain_parts.append(f"追问深度: {depth}")
+        lines.append(f"**追问链**: {' | '.join(chain_parts)}")
+        lines.append("")
 
     for i, ans in enumerate(q.get_answers()):
         lines.append("---")
@@ -376,8 +411,7 @@ def init_system(data_dir, api_key, model_name, state):
     if meta_graph.is_file():
         # ── 从 data/ 加载已有状态 ──
         try:
-            # TODO [GUI Phase E]: load_graph 返回 5 值，含 tag_manager
-            graph, board, operators, metadata = load_graph(data_dir)
+            graph, board, operators, metadata, tag_manager = load_graph(data_dir)
         except Exception as e:
             raise gr.Error(f"加载 data/ 失败: {e}")
 
@@ -419,6 +453,10 @@ def init_system(data_dir, api_key, model_name, state):
         board = QuestBoard()
         round_idx = 0
 
+        # 创建 TagManager
+        tag_manager = TagManager()
+        tag_manager.rebuild_from_graph(graph)
+
         log(state, f"  Operator: {', '.join(operators.keys())}")
 
     # ── LLM 客户端 ──
@@ -435,6 +473,7 @@ def init_system(data_dir, api_key, model_name, state):
     state["config"] = config
     state["llm_client"] = llm_client
     state["round"] = round_idx
+    state["tag_manager"] = tag_manager
     state["initialized"] = True
 
     log(state, f"[OK] 初始化完成: {len(graph.V)} 节点, {len(graph.E)} 边, {len(operators)} Operator")
@@ -443,16 +482,17 @@ def init_system(data_dir, api_key, model_name, state):
         state,
         log_join(state),
         render_graph(graph),
-        build_stats(graph, board, operators, round_idx),
+        build_stats(graph, board, operators, round_idx, tag_manager),
         *build_quest_table(board),
         build_quest_detail(board, ""),
         *build_graph_tables(graph),
+        build_tag_table(tag_manager),
     )
 
 
 # ── 回调：运行一轮 ──────────────────────────────────
 
-def run_round(state):
+def run_round(state, discussion_depth=0):
     if not state["initialized"]:
         raise gr.Error("请先初始化系统")
 
@@ -462,99 +502,31 @@ def run_round(state):
     operators = state["operators"]
     llm_client = state["llm_client"]
     round_idx = state["round"]
-
-    # TODO [GUI Phase E]: 每轮结束后触发 stk decay（根据轮次判断）
-    # TODO [GUI Phase E]: 支持 discussion_depth 参数控制追问深度
-
-    if llm_client is None:
-        raise gr.Error("LLM 客户端未就绪，请重新初始化")
-
-    op_list = list(operators.keys())
-    asker_name = op_list[round_idx % len(op_list)]
-    asker_op = operators[asker_name]
-
-    # 提问 (LLM 基于阅读路径生成 — 算子从当前位置开始)
-    quest = asker_op.ask(graph, board, content=None)
-    log(state, f">> 第 {round_idx + 1} 轮 — [{asker_name}] 提问: 《{quest.content[:80]}》")
-
-    # 回答 (LLM 基于阅读路径生成 — 算子从各自当前位置开始)
-    for ans_name in op_list:
-        if ans_name == asker_name:
-            continue
-        ans_op = operators[ans_name]
-        ans_node = ans_op.answer_quest(quest, board, graph)
-        trace = ans_node.trace
-        answer_preview = ans_node.content[:60] if ans_node.content else "(空)"
-        path_str = " -> ".join(trace.node_names) if trace and trace.node_names else "(直达)"
-        log(state, f"  [{ans_name}] 回答: {answer_preview}...")
-        log(state, f"          path: {path_str}")
-
-    # 评分 (LLM 评分)
-    for ans_name in op_list:
-        if ans_name == asker_name:
-            continue
-        asker_op.score_answer(quest, ans_name, graph=graph, board=board)
-        ans_node = quest.get_answer_by_id(ans_name)
-        if ans_node and ans_node.match_score is not None:
-            match_score = ans_node.match_score
-            novelty_score = ans_node.novelty_score
-            avg = (match_score + novelty_score) / 2
-            fb = "positive" if avg > 80 else "negative"
-            log(state, f"  [{asker_name}] -> {ans_name}  [{match_score:.0f}, {novelty_score:.0f}] avg={avg:.0f}  {fb}")
-
-    # 归一化
-    graph.force_normalize()
-
-    state["round"] = round_idx + 1
-    log(state, f"[OK] 第 {round_idx + 1} 轮完成")
-
-    return (
-        state,
-        log_join(state),
-        render_graph(graph),
-        build_stats(graph, board, operators, round_idx + 1),
-        *build_quest_table(board),
-        build_quest_detail(board, ""),
-        *build_graph_tables(graph),
-    )
-
-
-# ── 回调：运行 N 轮 ─────────────────────────────────
-
-def run_n_rounds(n, state):
-    if not state["initialized"]:
-        raise gr.Error("请先初始化系统")
-    if n < 1:
-        raise gr.Error("轮数必须 >= 1")
-
-    for _ in range(int(n)):
-        result = run_round(state)
-        state = result[0]
-
-    return result
-
-
-# ── 回调：保存 ──────────────────────────────────────
-
-def save_state_cb(data_dir, state):
-    if not state["initialized"]:
-        raise gr.Error("请先初始化系统")
-
-    metadata = {
-        "round": state["round"],
-    }
-    cfg = state.get("config")
-    if cfg:
-        metadata["llm_model"] = cfg.model
-
-    # TODO [GUI Phase E]: save_graph 增加 tag_manager 参数
+    tag_manager = state.get("tag_manager")
     save_graph(state["graph"], state["board"], state["operators"],
-               data_dir, metadata=metadata)
+               data_dir, metadata=metadata, tag_manager=tag_manager)
 
     state = dict(state)
     state["data_dir"] = data_dir
     log(state, f"[OK] 状态已保存到 {data_dir}/")
     return state, log_join(state)
+
+
+def decay_stk_cb(decay_fraction, state):
+    """手动触发 stk 衰减。"""
+    if not state["initialized"]:
+        raise gr.Error("请先初始化系统")
+    state = dict(state)
+    graph = state["graph"]
+    removed = graph.decay_stk(decay_fraction=decay_fraction)
+    tag_manager = state.get("tag_manager")
+    log(state, f"[手动] stk 衰减 {decay_fraction:.0%}: 移除了 {removed} 条条目")
+    return (
+        state,
+        log_join(state),
+        build_stats(graph, state["board"], state["operators"], state["round"], tag_manager),
+        build_tag_table(tag_manager),
+    )
 
 
 def test_llm_cb(api_key, model_name):
@@ -584,12 +556,13 @@ def load_state_cb(data_dir):
         raise gr.Error(f"未找到有效的保存状态: {data_dir}/meta/graph.json")
 
     # TODO [GUI Phase E]: load_graph 返回 5 值，含 tag_manager
-    graph, board, operators, metadata = load_graph(data_dir)
+    graph, board, operators, metadata, tag_manager = load_graph(data_dir)
 
     state = empty_state()
     state["graph"] = graph
     state["board"] = board
     state["operators"] = operators
+    state["tag_manager"] = tag_manager
     state["initialized"] = True
     state["data_dir"] = data_dir
 
@@ -612,10 +585,11 @@ def load_state_cb(data_dir):
         state,
         log_join(state),
         render_graph(graph),
-        build_stats(graph, board, operators, state["round"]),
+        build_stats(graph, board, operators, state["round"], tag_manager),
         *build_quest_table(board),
         build_quest_detail(board, ""),
         *build_graph_tables(graph),
+        build_tag_table(tag_manager),
     )
 
 
@@ -641,6 +615,34 @@ def import_materials_cb(source_path, data_dir, tags_str, overwrite, state):
     lines.append("下一步: 前往 [控制台] -> 初始化系统")
 
     return state, "\n".join(lines)
+
+
+def add_tag_cb(tag_name, node_name, state):
+    """给指定节点添加标签。"""
+    if not tag_name.strip() or not node_name.strip():
+        raise gr.Error("标签名和节点名不能为空")
+    if not state["initialized"]:
+        raise gr.Error("请先初始化系统")
+
+    state = dict(state)
+    graph = state["graph"]
+    tag_manager = state.get("tag_manager")
+
+    # 查找节点
+    node = None
+    for n in graph.V:
+        if n.name == node_name.strip():
+            node = n
+            break
+    if node is None:
+        raise gr.Error(f"未找到节点: {node_name}")
+
+    node.tags.add(tag_name.strip())
+    if tag_manager:
+        tag_manager.add_tag(node.name, tag_name.strip())
+
+    log(state, f"[标签] 已将标签「{tag_name}」添加到节点「{node.name}」")
+    return state, log_join(state)
 
 
 # ── Gradio 应用 ─────────────────────────────────────
@@ -696,84 +698,6 @@ with gr.Blocks(title="M-Grammaton", css=CSS, theme=gr.themes.Soft()) as demo:
 
             with gr.Column(scale=1):
                 gr.Markdown("### 运行控制")
-                # TODO [GUI Phase E]: 添加 MBTI 标签显示 + stk decay 触发按钮
-                with gr.Row():
-                    run_btn = gr.Button("运行一轮", variant="secondary", size="lg")
-                    run_n_btn = gr.Button("运行 N 轮", size="lg")
-                    n_rounds = gr.Number(5, label="轮数", minimum=1, maximum=100,
-                                         precision=0)
-                gr.Markdown("---")
-                gr.Markdown("### 持久化")
-                with gr.Row():
-                    save_btn = gr.Button("保存状态", size="sm")
-                    load_btn = gr.Button("加载状态", size="sm")
-                    save_dir = gr.Textbox("data", label="data/ 目录")
-
-        log_box = gr.Textbox(
-            label="运行日志", lines=15, max_lines=30,
-            placeholder="操作日志将显示在这里...",
-        )
-
-    # ═══════════════════════════════════════════════
-    # Tab 2: 图谱仪表盘
-    # ═══════════════════════════════════════════════
-    with gr.Tab("图谱仪表盘"):
-        graph_plot = gr.Plot(label="知识图谱可视化", format="png")
-        stats_md = gr.Markdown("### 统计信息\n\n_(尚未初始化)_")
-
-    # ═══════════════════════════════════════════════
-    # Tab 3: 问答板
-    # ═══════════════════════════════════════════════
-    with gr.Tab("问答板"):
-        with gr.Row():
-            active_quests = gr.Dataframe(
-                label="活跃 Quest",
-                headers=["Quest", "提问者", "内容", "回答数"],
-                interactive=False,
-                wrap=True,
-            )
-            completed_quests = gr.Dataframe(
-                label="已完成 Quest",
-                headers=["Quest", "提问者", "内容", "回答数", "平均匹配度", "平均新颖度"],
-                interactive=False,
-                wrap=True,
-            )
-        quest_detail_md = gr.Markdown("### Quest 详情\n\n_(点击表格中的 Quest 查看详情)_")
-
-        active_quests.select(
-            fn=_quest_detail_from_selection,
-            inputs=[active_quests, state],
-            outputs=[quest_detail_md],
-        )
-        completed_quests.select(
-            fn=_quest_detail_from_selection,
-            inputs=[completed_quests, state],
-            outputs=[quest_detail_md],
-        )
-
-    # ═══════════════════════════════════════════════
-    # Tab 4: 图探索器
-    # ═══════════════════════════════════════════════
-    with gr.Tab("图探索器"):
-        with gr.Row():
-            node_table = gr.Dataframe(
-                label="节点列表",
-                headers=["名称", "类型", "出度", "入度", "内容预览"],
-                interactive=False,
-                wrap=True,
-            )
-        with gr.Row():
-            edge_table = gr.Dataframe(
-                label="边列表",
-                headers=["源", "目标", "权重"],
-                interactive=False,
-                wrap=True,
-            )
-
-    # ═══════════════════════════════════════════════
-    # Tab 5: 文段导入
-    # ═══════════════════════════════════════════════
-    # TODO [GUI Phase E]: Tab 6 — 标签管理（标签列表、创建、关联节点、概念关联图）
 
     with gr.Tab("文段导入"):
         gr.Markdown("### 将原始 Markdown 材料导入为 data/ 节点文件")
@@ -804,13 +728,39 @@ with gr.Blocks(title="M-Grammaton", css=CSS, theme=gr.themes.Soft()) as demo:
                 )
 
     # ═══════════════════════════════════════════════
+    # Tab 6: 标签管理
+    # ═══════════════════════════════════════════════
+    with gr.Tab("标签管理"):
+        gr.Markdown("### 全局标签统计与关联管理")
+        with gr.Row():
+            tag_table = gr.Dataframe(
+                label="标签列表",
+                headers=["标签", "关联节点数", "节点列表"],
+                interactive=False,
+                wrap=True,
+            )
+        with gr.Row():
+            with gr.Column(scale=1):
+                gr.Markdown("#### 关联概念图（按标签筛选）")
+                tag_filter = gr.Dropdown(
+                    label="按标签筛选概念",
+                    choices=[],
+                    multiselect=True,
+                    interactive=True,
+                )
+            with gr.Column(scale=1):
+                gr.Markdown("#### 标签操作")
+                new_tag_name = gr.Textbox(label="新标签名", placeholder="输入标签名")
+                new_tag_node = gr.Textbox(label="关联节点名", placeholder="输入节点名")
+                add_tag_btn = gr.Button("添加标签到节点", size="sm")
+
+    # ═══════════════════════════════════════════════
     # 事件绑定
     # ═══════════════════════════════════════════════
 
     state_outputs = [state, log_box, graph_plot, stats_md,
                      active_quests, completed_quests, quest_detail_md,
-                     node_table, edge_table]
-    # TODO [GUI Phase E]: 在 state_outputs 中添加 tag_table，更新所有回调的返回值
+                     node_table, edge_table, tag_table]
 
     init_btn.click(
         fn=init_system,
@@ -818,12 +768,18 @@ with gr.Blocks(title="M-Grammaton", css=CSS, theme=gr.themes.Soft()) as demo:
         outputs=state_outputs,
     )
 
-    run_btn.click(fn=run_round, inputs=[state], outputs=state_outputs)
+    run_btn.click(fn=run_round, inputs=[state, discussion_depth], outputs=state_outputs)
 
     run_n_btn.click(fn=run_n_rounds, inputs=[n_rounds, state], outputs=state_outputs)
 
     save_btn.click(fn=save_state_cb, inputs=[save_dir, state],
                    outputs=[state, log_box])
+
+    decay_btn.click(
+        fn=decay_stk_cb,
+        inputs=[decay_fraction, state],
+        outputs=[state, log_box, stats_md, tag_table],
+    )
 
     test_llm_btn.click(
         fn=test_llm_cb,
@@ -838,6 +794,12 @@ with gr.Blocks(title="M-Grammaton", css=CSS, theme=gr.themes.Soft()) as demo:
         fn=import_materials_cb,
         inputs=[import_source, data_dir, import_tags, import_overwrite, state],
         outputs=[state, import_result],
+    )
+
+    add_tag_btn.click(
+        fn=add_tag_cb,
+        inputs=[new_tag_name, new_tag_node, state],
+        outputs=[state, log_box],
     )
 
 
