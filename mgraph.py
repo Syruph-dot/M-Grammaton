@@ -339,40 +339,6 @@ class MGraph():
             for link in node.outlinks:
                 link.set_raw_value(link.value / total)
 
-    def decay_stk(self, decay_fraction: float = 0.15,
-                  min_nodes_ratio: float = 1.0) -> int:
-        """腐烂 stk 栈底条目 —— 模拟长期遗忘。
-
-        当所有节点的 stk 条目总数 > |V| * min_nodes_ratio 时触发，
-        按每个节点 stk 长度比例分配腐烂额度（含随机扰动），
-        从栈底（最早）开始 FIFO 删除。
-
-        返回腐烂的条目总数。
-        """
-        total = sum(len(n.stk) for n in self.V)
-        if total <= len(self.V) * min_nodes_ratio:
-            return 0
-
-        target = max(1, int(total * decay_fraction))
-        candidates = [n for n in self.V if n.stk]
-        if not candidates:
-            return 0
-
-        weights = [len(n.stk) for n in candidates]
-        total_weight = sum(weights)
-        removed = 0
-
-        for node, w in zip(candidates, weights):
-            exact = target * w / total_weight
-            share = int(exact)
-            # 随机扰动处理小数部分
-            if random() < (exact - share):
-                share += 1
-            if share > 0:
-                node.stk = node.stk[share:]
-                removed += share
-
-        return removed
 
     def clear_edges(self):
         for item in self.V:
