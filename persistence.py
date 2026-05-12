@@ -13,6 +13,7 @@ from mgraph import MGraph, Node, Edge, binResponse
 from questnode import AnswerNode, QuestNode, AnswerTrace
 from quest_board import QuestBoard
 from operators import Operator
+from tag_manager import TagManager
 
 VERSION = "0.3"
 
@@ -22,7 +23,8 @@ VERSION = "0.3"
 def save_graph(graph: MGraph, board: QuestBoard,
                operators: dict[str, Operator],
                data_dir: str = "data",
-               metadata: dict | None = None) -> None:
+               metadata: dict | None = None,
+               tag_manager: TagManager | None = None) -> None:
     """全量保存到 data/ 目录。"""
     root = Path(data_dir)
     meta_dir = root / "meta"
@@ -52,8 +54,11 @@ def save_graph(graph: MGraph, board: QuestBoard,
     edges_data = _serialize_edges(graph)
     _write_meta(meta_dir, "edges.json", {"edges": edges_data})
 
-    # ── 3. meta/tags.json（预留） ──
-    _write_meta(meta_dir, "tags.json", {"tags": []})
+    # ── 3. meta/tags.json ──
+    if tag_manager is None:
+        tag_manager = TagManager()
+        tag_manager.rebuild_from_graph(graph)
+    _write_meta(meta_dir, "tags.json", {"tags": tag_manager.to_dict()})
 
     # ── 4. meta/quest_board.json ──
     _write_meta(meta_dir, "quest_board.json", {
@@ -88,8 +93,8 @@ def save_graph(graph: MGraph, board: QuestBoard,
     _write_meta(meta_dir, "graph.json", graph_meta)
 
 
-def load_graph(data_dir: str = "data") -> tuple[MGraph, QuestBoard, dict[str, Operator], dict | None]:
-    """全量加载 data/ 目录。返回 (graph, board, operators, metadata)。"""
+def load_graph(data_dir: str = "data") -> tuple[MGraph, QuestBoard, dict[str, Operator], dict | None, TagManager]:
+    """全量加载 data/ 目录。返回 (graph, board, operators, metadata, tag_manager)。"""
     root = Path(data_dir)
     meta_dir = root / "meta"
 
@@ -160,10 +165,14 @@ def load_graph(data_dir: str = "data") -> tuple[MGraph, QuestBoard, dict[str, Op
                 op.submitted_quests.append(qnode)
         operators[op_id] = op
 
-    # ── 7. 提取 metadata ──
+    # ── 7. 加载标签索引 ──
+    tags_data = _read_meta(meta_dir, "tags.json") or {}
+    tag_manager = TagManager.from_dict(tags_data.get("tags", {}))
+
+    # ── 8. 提取 metadata ──
     metadata = graph_meta.get("user_metadata")
 
-    return graph, board, operators, metadata
+    return graph, board, operators, metadata, tag_manager
 
 
 def save_node(node: Node, data_dir: str = "data") -> None:
@@ -220,6 +229,8 @@ def _node_to_md(node: Node) -> str:
     if isinstance(node, QuestNode):
         fm["kind"] = "quest"
         fm["quester_id"] = node.quester_id
+        fm["depth"] = node.depth
+        fm["parent_quest"] = node.parent_quest
 
     if isinstance(node, AnswerNode):
         fm["kind"] = "answer"
@@ -254,6 +265,8 @@ def _md_to_node(md_text: str, graph: MGraph) -> tuple[Node, str | None, list[lis
             name=name,
             quester_id=fm.get("quester_id", ""),
             content="",
+            parent_quest=fm.get("parent_quest"),
+            depth=int(fm.get("depth", 0)),
         )
     elif kind == "answer":
         node = AnswerNode(
