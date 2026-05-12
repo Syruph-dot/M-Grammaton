@@ -140,7 +140,7 @@ def test_roundtrip_preserves_all_state(tmp_path):
 
     # 加载
     import json as _json
-    g2, board2, ops2, meta2 = load_graph(data_dir)
+    g2, board2, ops2, meta2, _ = load_graph(data_dir)
 
     # ── 验证图 ──
     assert len(g2.V) == len(g.V)
@@ -213,7 +213,7 @@ def test_roundtrip_preserves_stk(tmp_path):
     assert len(n0.stk) > 0
 
     save_graph(g, board, {"alice": op, "bob": bob}, data_dir)
-    g2, _, _, _ = load_graph(data_dir)
+    g2, _, _, _, _ = load_graph(data_dir)
 
     n0_loaded = next(n for n in g2.V if n.name == "A")
     assert len(n0_loaded.stk) == len(n0.stk)
