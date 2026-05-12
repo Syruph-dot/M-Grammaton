@@ -9,8 +9,10 @@ from pathlib import Path
 from async_llm_client import AsyncLLMClient
 from config import Config
 from mgraph import MGraph, Node
+from persistence import save_graph
 from quest_board import QuestBoard
 from questnode import AnswerNode, QuestNode
+from tag_manager import TagManager
 
 from runtime.async_operator import AsyncOperator
 from runtime.decision import RandomDecider
@@ -30,6 +32,8 @@ class OperatorRuntime:
         self.running = False
         self.round = 0
         self._stk_decay_counter = 0
+        self.data_dir = data_dir
+        self._save_interval = 10  # 每 N 个 tick 自动存盘
 
         self.config = Config()
         self.config.model = model
@@ -121,6 +125,14 @@ class OperatorRuntime:
     async def shutdown(self, sig=None):
         logger.info("[Runtime] 正在关闭...")
         self.running = False
+        try:
+            tm = TagManager()
+            tm.rebuild_from_graph(self.graph)
+            save_graph(self.graph, self.board, self.operators,
+                       data_dir=self.data_dir, tag_manager=tm)
+            logger.info("[Runtime] 关闭时存盘完成")
+        except Exception:
+            logger.exception("[Runtime] 关闭存盘失败")
         if self.llm_client is not None:
             await self.llm_client.close()
         logger.info("[Runtime] 所有 Operator 已停止")
@@ -135,6 +147,7 @@ class OperatorRuntime:
             await self.bus.broadcast(ClockTick(round=self.round))
             logger.debug("[Clock] tick round=%d", self.round)
             await self._check_stk_decay()
+            await self._auto_save()
 
     async def _check_stk_decay(self):
         """延迟重检 stk 栈满载情况。每 tick 调用一次。"""
@@ -167,6 +180,18 @@ class OperatorRuntime:
             logger.info("[Decay] 触发腐烂: 移除 %d 条 stk 条目", removed)
         else:
             logger.debug("[Decay] 重检时 stk 已回落 (%.1f%%), 跳过", ratio * 100)
+
+    async def _auto_save(self):
+        if self.round % self._save_interval != 0:
+            return
+        try:
+            tm = TagManager()
+            tm.rebuild_from_graph(self.graph)
+            save_graph(self.graph, self.board, self.operators,
+                       data_dir=self.data_dir, tag_manager=tm)
+            logger.info("[Save] 自动存盘完成 (round %d)", self.round)
+        except Exception:
+            logger.exception("[Save] 自动存盘失败")
 
 
 async def main():

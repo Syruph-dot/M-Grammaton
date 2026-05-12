@@ -90,6 +90,19 @@ class Persona:
         if not self.score_style:
             self.score_style = _compose_style(self.mbti, "score")
 
+    def to_dict(self) -> dict:
+        return {"mbti": self.mbti, "question_style": self.question_style,
+                "answer_style": self.answer_style, "score_style": self.score_style}
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(
+            mbti=data.get("mbti", "INTJ"),
+            question_style=data.get("question_style", ""),
+            answer_style=data.get("answer_style", ""),
+            score_style=data.get("score_style", ""),
+        )
+
     @property
     def label(self) -> str:
         """MBTI 标签 + 中文描述，如 'INTJ（内向-直觉-思考-判断）'"""

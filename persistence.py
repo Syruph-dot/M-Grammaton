@@ -9,7 +9,7 @@ import time
 import yaml
 from pathlib import Path
 
-from mgraph import MGraph, Node, Edge, binResponse
+from mgraph import MGraph, Node, Edge, binResponse, compress_stk, serialize_stk
 from persona import Persona
 from questnode import AnswerNode, QuestNode, AnswerTrace
 from quest_board import QuestBoard
@@ -52,8 +52,7 @@ def save_graph(graph: MGraph, board: QuestBoard,
                 pass
 
     # ── 2. meta/edges.json ──
-    edges_data = _serialize_edges(graph)
-    _write_meta(meta_dir, "edges.json", {"edges": edges_data})
+    _write_meta(meta_dir, "edges.json", {"edges": graph.serialize_edges()})
 
     # ── 3. meta/tags.json ──
     if tag_manager is None:
@@ -62,10 +61,7 @@ def save_graph(graph: MGraph, board: QuestBoard,
     _write_meta(meta_dir, "tags.json", {"tags": tag_manager.to_dict()})
 
     # ── 4. meta/quest_board.json ──
-    _write_meta(meta_dir, "quest_board.json", {
-        "active": [q.name for q in board.active],
-        "completed": [q.name for q in board.completed],
-    })
+    _write_meta(meta_dir, "quest_board.json", board.to_dict())
 
     # ── 5. meta/operators.json ──
     ops_data = {}
@@ -129,7 +125,7 @@ def load_graph(data_dir: str = "data") -> tuple[MGraph, QuestBoard, dict[str, Op
 
     # ── 3. 加载边 ──
     edges_data = _read_meta(meta_dir, "edges.json") or {}
-    _load_edges(edges_data.get("edges", []), node_map)
+    graph.deserialize_edges(edges_data.get("edges", []), node_map)
 
     # ── 4. 重建 stk ──
     for node_name, entries in pending_stk.items():
@@ -143,15 +139,7 @@ def load_graph(data_dir: str = "data") -> tuple[MGraph, QuestBoard, dict[str, Op
 
     # ── 5. 加载问答板 ──
     board_data = _read_meta(meta_dir, "quest_board.json") or {}
-    board = QuestBoard()
-    for qname in board_data.get("active", []):
-        qnode = node_map.get(qname)
-        if isinstance(qnode, QuestNode):
-            board.active.append(qnode)
-    for qname in board_data.get("completed", []):
-        qnode = node_map.get(qname)
-        if isinstance(qnode, QuestNode):
-            board.completed.append(qnode)
+    board = QuestBoard.from_dict(board_data, node_map)
 
     # ── 6. 加载 Operators ──
     ops_data = _read_meta(meta_dir, "operators.json") or {}
@@ -217,32 +205,9 @@ def _read_meta(meta_dir: Path, filename: str) -> dict | None:
 
 def _node_to_md(node: Node) -> str:
     """Node → .md 字符串（YAML frontmatter + body）。"""
-    fm = {
-        "name": node.name,
-        "kind": node.kind,
-        "title": getattr(node, "title", node.name),
-        "tags": sorted(node.tags) if node.tags else [],
-        "t_read": node.t_read,
-        "t_write": node.t_write,
-        "t_lp": node.t_lp,
-        "parent": node.parent.name if node.parent else None,
-        "metadata": dict(getattr(node, "metadata", {})),
-        "stk": _compress_stk(_serialize_stk_raw(node.stk)),
-    }
-
-    if isinstance(node, QuestNode):
-        fm["kind"] = "quest"
-        fm["quester_id"] = node.quester_id
-        fm["depth"] = node.depth
-        fm["parent_quest"] = node.parent_quest
-
-    if isinstance(node, AnswerNode):
-        fm["kind"] = "answer"
-        fm["answerer_id"] = node.answerer_id
-        fm["quest_name"] = node.quest_name
-        fm["match_score"] = node.match_score
-        fm["novelty_score"] = node.novelty_score
-        fm["trace"] = _serialize_trace(node.trace) if node.trace else None
+    fm = node.to_dict()
+    # stk 不在 to_dict（避免循环），额外补充
+    fm["stk"] = compress_stk(serialize_stk(node.stk))
 
     yaml_str = yaml.safe_dump(fm, allow_unicode=True, default_flow_style=False,
                                sort_keys=False).strip()
@@ -259,41 +224,16 @@ def _node_to_md(node: Node) -> str:
 def _md_to_node(md_text: str, graph: MGraph) -> tuple[Node, str | None, list[list]]:
     """解析 .md → (node, parent_name, stk_raw)。node 已加入 graph。"""
     fm, body = _parse_frontmatter(md_text)
-    name = fm.get("name", "")
-    kind = fm.get("kind", "document")
     parent_name = fm.get("parent")
     stk_raw = fm.get("stk", [])
+    kind = fm.get("kind", "document")
 
-    if kind == "quest":
-        node = QuestNode(
-            name=name,
-            quester_id=fm.get("quester_id", ""),
-            content="",
-            parent_quest=fm.get("parent_quest"),
-            depth=int(fm.get("depth", 0)),
-        )
-    elif kind == "answer":
-        node = AnswerNode(
-            name=name,
-            answerer_id=fm.get("answerer_id", ""),
-            quest_name=fm.get("quest_name", ""),
-            content="",
-        )
-        node.match_score = fm.get("match_score")
-        node.novelty_score = fm.get("novelty_score")
-        node.trace = _deserialize_trace(fm.get("trace"))
-    else:
-        node = Node(name=name, kind=kind, content="")
-
-    node.content = body.strip()
-    node.title = fm.get("title", name)
-    node.tags = set(fm.get("tags", []))
-    node.t_read = float(fm.get("t_read", 0.0))
-    node.t_write = float(fm.get("t_write", 0.0))
-    node.t_lp = float(fm.get("t_lp", 0.0))
-    node.metadata = fm.get("metadata", {})
-
-    graph.add_node(node)
+    node_map = {
+        "quest": QuestNode.from_dict,
+        "answer": AnswerNode.from_dict,
+    }
+    factory = node_map.get(kind, Node.from_dict)
+    node = factory(fm, body, graph)
     return node, parent_name, stk_raw
 
 
@@ -309,91 +249,9 @@ def _parse_frontmatter(md_text: str) -> tuple[dict, str]:
     return {}, text
 
 
-# ── 边序列化 ──────────────────────────────────────
-
-def _serialize_edges(graph: MGraph) -> list[dict]:
-    result = []
-    for e in graph.E:
-        result.append({
-            "s": e.source.name,
-            "t": e.target.name,
-            "v": e.value,
-        })
-    return result
-
-
-def _load_edges(edges_data: list[dict], node_map: dict[str, Node]) -> None:
-    """从边数据重建所有 Edge（通过 src.link_to 自动注册到图）。"""
-    for edata in edges_data:
-        src = node_map.get(edata["s"])
-        tgt = node_map.get(edata["t"])
-        if src is not None and tgt is not None:
-            src.link_to(tgt, float(edata["v"]))
-
-
 def _find_edge(source: Node, target_name: str) -> Edge | None:
     """在 source.outlinks 中查找指向 target_name 的边。"""
     for link in source.outlinks:
         if link.target.name == target_name:
             return link
     return None
-
-
-# ── stk 序列化/压缩 ──────────────────────────────
-
-def _serialize_stk_raw(stk: list[binResponse]) -> list[list]:
-    """stk → [[reaction, target_name], ...] 原始列表。"""
-    result = []
-    for br in stk:
-        result.append([br.reaction, br.target.target.name])
-    return result
-
-
-def _compress_stk(stk_data: list[list]) -> list[list]:
-    """压缩 stk：相邻同符号只保留最近 20，总长超 100 截断尾部 50。"""
-    if not stk_data:
-        return []
-
-    result = []
-    run_start = stk_data[0][0]
-    run = [stk_data[0]]
-    for entry in stk_data[1:]:
-        if entry[0] == run_start:
-            run.append(entry)
-        else:
-            result.extend(run[-20:])
-            run_start = entry[0]
-            run = [entry]
-    result.extend(run[-20:])
-
-    if len(result) > 100:
-        result = result[-50:]
-    return result
-
-
-# ── AnswerTrace 序列化 ────────────────────────────
-
-def _serialize_trace(t: AnswerTrace) -> dict:
-    return {
-        "quest_name": t.quest_name,
-        "answer_index": t.answer_index,
-        "answerer_id": t.answerer_id,
-        "node_names": t.node_names,
-        "edge_refs": t.edge_refs,
-        "score": t.score,
-        "feedback_applied": t.feedback_applied,
-    }
-
-
-def _deserialize_trace(raw: dict | None) -> AnswerTrace | None:
-    if raw is None:
-        return None
-    return AnswerTrace(
-        quest_name=raw.get("quest_name", ""),
-        answer_index=raw.get("answer_index", -1),
-        answerer_id=raw.get("answerer_id", ""),
-        node_names=raw.get("node_names", []),
-        edge_refs=[tuple(p) for p in raw.get("edge_refs", [])],
-        score=raw.get("score"),
-        feedback_applied=raw.get("feedback_applied", False),
-    )

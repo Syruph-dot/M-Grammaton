@@ -17,6 +17,31 @@ class AnswerTrace:
     score: float | None = None
     feedback_applied: bool = False
 
+    def to_dict(self) -> dict:
+        return {
+            "quest_name": self.quest_name,
+            "answer_index": self.answer_index,
+            "answerer_id": self.answerer_id,
+            "node_names": self.node_names,
+            "edge_refs": self.edge_refs,
+            "score": self.score,
+            "feedback_applied": self.feedback_applied,
+        }
+
+    @classmethod
+    def from_dict(cls, raw: dict | None):
+        if raw is None:
+            return None
+        return cls(
+            quest_name=raw.get("quest_name", ""),
+            answer_index=raw.get("answer_index", -1),
+            answerer_id=raw.get("answerer_id", ""),
+            node_names=raw.get("node_names", []),
+            edge_refs=[tuple(p) for p in raw.get("edge_refs", [])],
+            score=raw.get("score"),
+            feedback_applied=raw.get("feedback_applied", False),
+        )
+
 
 class QuestNode(Node):
     """问题节点 —— 仅持有问题本身。答案由独立的 AnswerNode 承载。"""
@@ -42,6 +67,32 @@ class QuestNode(Node):
                 return target
         return None
 
+    def to_dict(self):
+        base = super().to_dict()
+        base["kind"] = "quest"
+        base["quester_id"] = self.quester_id
+        base["depth"] = self.depth
+        base["parent_quest"] = self.parent_quest
+        return base
+
+    @classmethod
+    def from_dict(cls, fm, body, graph):
+        node = cls(
+            name=fm.get("name", ""),
+            quester_id=fm.get("quester_id", ""),
+            content=body.strip(),
+            parent_quest=fm.get("parent_quest"),
+            depth=int(fm.get("depth", 0)),
+        )
+        node.title = fm.get("title", node.name)
+        node.tags = set(fm.get("tags", []))
+        node.t_read = float(fm.get("t_read", 0.0))
+        node.t_write = float(fm.get("t_write", 0.0))
+        node.t_lp = float(fm.get("t_lp", 0.0))
+        node.metadata = fm.get("metadata", {})
+        graph.add_node(node)
+        return node
+
 
 class AnswerNode(Node):
     """答案节点 —— 一条回答作为一等图节点存在。
@@ -57,3 +108,33 @@ class AnswerNode(Node):
         self.trace: AnswerTrace | None = None
         self.match_score: float | None = None
         self.novelty_score: float | None = None
+
+    def to_dict(self):
+        base = super().to_dict()
+        base["kind"] = "answer"
+        base["answerer_id"] = self.answerer_id
+        base["quest_name"] = self.quest_name
+        base["match_score"] = self.match_score
+        base["novelty_score"] = self.novelty_score
+        base["trace"] = self.trace.to_dict() if self.trace else None
+        return base
+
+    @classmethod
+    def from_dict(cls, fm, body, graph):
+        node = cls(
+            name=fm.get("name", ""),
+            answerer_id=fm.get("answerer_id", ""),
+            quest_name=fm.get("quest_name", ""),
+            content=body.strip(),
+        )
+        node.match_score = fm.get("match_score")
+        node.novelty_score = fm.get("novelty_score")
+        node.trace = AnswerTrace.from_dict(fm.get("trace"))
+        node.title = fm.get("title", node.name)
+        node.tags = set(fm.get("tags", []))
+        node.t_read = float(fm.get("t_read", 0.0))
+        node.t_write = float(fm.get("t_write", 0.0))
+        node.t_lp = float(fm.get("t_lp", 0.0))
+        node.metadata = fm.get("metadata", {})
+        graph.add_node(node)
+        return node

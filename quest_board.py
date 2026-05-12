@@ -82,3 +82,22 @@ class QuestBoard:
         if quest in self.active:
             self.active.remove(quest)
             self.completed.append(quest)
+
+    def to_dict(self) -> dict:
+        return {
+            "active": [q.name for q in self.active],
+            "completed": [q.name for q in self.completed],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict, node_map: dict[str, QuestNode]):
+        board = cls()
+        for qname in data.get("active", []):
+            qnode = node_map.get(qname)
+            if isinstance(qnode, QuestNode):
+                board.active.append(qnode)
+        for qname in data.get("completed", []):
+            qnode = node_map.get(qname)
+            if isinstance(qnode, QuestNode):
+                board.completed.append(qnode)
+        return board

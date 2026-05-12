@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from heapq import heappop, heappush
 from math import atan2, cos, sin
@@ -205,6 +207,38 @@ class Node:
             if walked >= threshold:
                 break
         return selected.target, selected
+
+    def to_dict(self):
+        """序列化到 frontmatter dict。"""
+        return {
+            "name": self.name,
+            "kind": self.kind,
+            "title": self.title,
+            "tags": sorted(self.tags),
+            "t_read": self.t_read,
+            "t_write": self.t_write,
+            "t_lp": self.t_lp,
+            "parent": self.parent.name if self.parent else None,
+            "metadata": dict(self.metadata),
+        }
+
+    @classmethod
+    def from_dict(cls, fm: dict, body: str, graph):
+        """从 frontmatter dict + body 重建节点。parent 和 stk 由调用方处理。"""
+        node = cls(
+            name=fm.get("name", ""),
+            kind=fm.get("kind", "document"),
+            content=body.strip(),
+        )
+        node.title = fm.get("title", node.name)
+        node.tags = set(fm.get("tags", []))
+        node.t_read = float(fm.get("t_read", 0.0))
+        node.t_write = float(fm.get("t_write", 0.0))
+        node.t_lp = float(fm.get("t_lp", 0.0))
+        node.metadata = fm.get("metadata", {})
+        graph.add_node(node)
+        return node
+
     def __repr__(self):
         return f"node({self.name})"
 
@@ -296,6 +330,31 @@ class binResponse:
         self.weight = float(self.target.value)
 
 
+def serialize_stk(stk: list[binResponse]) -> list[list]:
+    """stk → [[reaction, target_name], ...] 原始列表。"""
+    return [[br.reaction, br.target.target.name] for br in stk]
+
+
+def compress_stk(stk_data: list[list]) -> list[list]:
+    """压缩 stk：相邻同符号只保留最近 20，总长超 100 截断尾部 50。"""
+    if not stk_data:
+        return []
+    result = []
+    run_start = stk_data[0][0]
+    run = [stk_data[0]]
+    for entry in stk_data[1:]:
+        if entry[0] == run_start:
+            run.append(entry)
+        else:
+            result.extend(run[-20:])
+            run_start = entry[0]
+            run = [entry]
+    result.extend(run[-20:])
+    if len(result) > 100:
+        result = result[-50:]
+    return result
+
+
 def polar_redist(positive: float, negative: float):
     theta = atan2(negative, positive) / 2
     amp = (positive**2 + negative**2) ** 0.5
@@ -339,6 +398,16 @@ class MGraph():
             for link in node.outlinks:
                 link.set_raw_value(link.value / total)
 
+    def serialize_edges(self) -> list[dict]:
+        return [{"s": e.source.name, "t": e.target.name, "v": e.value} for e in self.E]
+
+    @staticmethod
+    def deserialize_edges(edges_data: list[dict], node_map: dict[str, Node]):
+        for edata in edges_data:
+            src = node_map.get(edata["s"])
+            tgt = node_map.get(edata["t"])
+            if src is not None and tgt is not None:
+                src.link_to(tgt, float(edata["v"]))
 
     def clear_edges(self):
         for item in self.V:

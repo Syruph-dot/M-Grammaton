@@ -3,13 +3,13 @@ import json
 import os
 from pathlib import Path
 
-from mgraph import MGraph, Node, binResponse
+from mgraph import MGraph, Node, binResponse, compress_stk
 from operators import Operator
 from quest_board import QuestBoard
 from questnode import AnswerNode, QuestNode, AnswerTrace
 from persistence import (
     save_graph, load_graph, save_node,
-    _node_to_md, _md_to_node, _compress_stk,
+    _node_to_md, _md_to_node,
 )
 
 
@@ -246,7 +246,7 @@ def test_stk_compression():
     """stk 压缩：相邻同符号留最近 20，超 100 截断。"""
     # 同符号长跑 -> 只保留最近 20
     long_run = [[True, f"n{i}"] for i in range(50)]
-    result = _compress_stk(long_run)
+    result = compress_stk(long_run)
     assert len(result) == 20
     assert result[-1][1] == "n49"
 
@@ -255,7 +255,7 @@ def test_stk_compression():
     for i in range(30):
         alternating.append([True, f"p{i}"])
         alternating.append([False, f"n{i}"])
-    result = _compress_stk(alternating)
+    result = compress_stk(alternating)
     assert len(result) == 60
 
     # 超 100 -> 截断尾部 50
@@ -263,11 +263,11 @@ def test_stk_compression():
     for sign in [True, False] * 60:
         huge.append([sign, "x"])
     assert len(huge) == 120
-    result = _compress_stk(huge)
+    result = compress_stk(huge)
     assert len(result) == 50
 
     # 空列表
-    assert _compress_stk([]) == []
+    assert compress_stk([]) == []
 
 
 def test_graph_meta(tmp_path):
