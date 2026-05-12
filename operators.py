@@ -1,10 +1,10 @@
 from random import randint, uniform
-import string
 
 from mgraph import Node, NodePtr, insert_response
 from persona import Persona, random_persona
 from quest_board import QuestBoard
 from questnode import AnswerNode, AnswerTrace, QuestNode
+from operator_core import read_context, navigate
 
 
 class Operator:
@@ -80,60 +80,11 @@ class Operator:
             return None
         return available[0]
 
-    def navigate_to(self, graph, target: Node, steps: int = 3) -> Node | None:
-        current = self.current.get()
-        for _ in range(steps):
-            if current is target:
-                return current
-            for edge in current.outlinks:
-                if edge.target is target:
-                    self.current.bind(target)
-                    return target
-            nxt, _ = current.sample_l1()
-            if nxt is current:
-                break
-            self.current.bind(nxt)
-            current = nxt
-        try:
-            current.link_to(target, uniform(0.2, 0.5))
-        except ValueError:
-            pass
-        self.current.bind(target)
-        return target
+    def navigate_to(self, graph, target: Node, steps: int = 3) -> Node:
+        return navigate(self.current, target, steps)
 
     def read_for_quest(self, node_limit: int = 3):
-        """从当前节点出发，沿 sample_l2 行走并记录阅读路径。
-
-        返回:
-            node_names: list[str]   — 访问过的节点名
-            path_edges: list[tuple[str, str]] — (source, target) 边列表
-            context_text: str       — 节点内容拼接（含临时标签【材料A/B/C…】）
-        """
-        start = self.current.get()
-        node_names: list[str] = [start.name]
-        path_edges: list[tuple[str, str]] = []
-        context_parts: list[str] = []
-
-        # 收集访问过的节点
-        visited: list = [start]
-        current = start
-        for _ in range(node_limit - 1):
-            nxt, edge = current.sample_l2()
-            if edge is None:
-                break
-            path_edges.append((current.name, nxt.name))
-            node_names.append(nxt.name)
-            visited.append(nxt)
-            current = nxt
-
-        # 构建带临时标签的上下文（标签不落任何节点属性）
-        for i, node in enumerate(visited):
-            if node.content:
-                tag = f"【材料{string.ascii_uppercase[i]}】" if i < 26 else f"【材料{i+1}】"
-                context_parts.append(f"{tag}「{node.title}」：\n{node.content}")
-
-        context_text = "\n\n---\n\n".join(context_parts)
-        return node_names, path_edges, context_text
+        return read_context(self.current.get(), node_limit)
 
     def answer_quest(
         self, quest: QuestNode, board: QuestBoard, graph, answer_text: str = None

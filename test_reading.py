@@ -1,7 +1,6 @@
-"""Phase 3: Operator 阅读路径测试。"""
+"""Phase 3: Operator 阅读路径测试（直接测试 operator_core）。"""
 from mgraph import MGraph, Node
-from operators import Operator
-from quest_board import QuestBoard
+from operator_core import read_context
 
 
 def _chain_graph(size=4):
@@ -18,8 +17,7 @@ def _chain_graph(size=4):
 
 def test_read_respects_node_limit():
     g, nodes = _chain_graph(5)
-    op = Operator("reader", nodes[0])
-    names, edges, ctx = op.read_for_quest(node_limit=3)
+    names, edges, ctx = read_context(nodes[0], node_limit=3)
 
     assert len(names) == 3
     assert names == ["node_0", "node_1", "node_2"]
@@ -29,10 +27,8 @@ def test_read_respects_node_limit():
 
 
 def test_read_single_node_when_no_outlinks():
-    g = MGraph()
-    n = Node("lonely", content="alone", mg=g)
-    op = Operator("reader", n)
-    names, edges, ctx = op.read_for_quest(node_limit=5)
+    n = Node("lonely", content="alone")
+    names, edges, ctx = read_context(n, node_limit=5)
 
     assert names == ["lonely"]
     assert edges == []
@@ -40,8 +36,7 @@ def test_read_single_node_when_no_outlinks():
 
 def test_read_collects_context():
     g, nodes = _chain_graph(3)
-    op = Operator("reader", nodes[0])
-    names, edges, ctx = op.read_for_quest(node_limit=3)
+    names, edges, ctx = read_context(nodes[0], node_limit=3)
 
     assert "content_0" in ctx
     assert "content_1" in ctx
@@ -54,8 +49,7 @@ def test_read_empty_content_nodes():
     n0 = Node("n0", mg=g)
     n1 = Node("n1", mg=g)
     n0.link_to(n1, 1.0)
-    op = Operator("reader", n0)
-    names, edges, ctx = op.read_for_quest(node_limit=2)
+    names, edges, ctx = read_context(n0, node_limit=2)
 
     assert names == ["n0", "n1"]
     assert ctx == ""
@@ -63,8 +57,7 @@ def test_read_empty_content_nodes():
 
 def test_read_node_limit_one():
     g, nodes = _chain_graph(5)
-    op = Operator("reader", nodes[0])
-    names, edges, ctx = op.read_for_quest(node_limit=1)
+    names, edges, ctx = read_context(nodes[0], node_limit=1)
 
     assert names == ["node_0"]
     assert edges == []

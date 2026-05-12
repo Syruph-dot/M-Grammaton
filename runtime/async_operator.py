@@ -3,7 +3,6 @@
 import asyncio
 import logging
 import random
-import string
 from typing import Any
 
 from mgraph import Node, NodePtr, insert_response
@@ -12,6 +11,7 @@ from prompts import build_answer_prompt, build_question_prompt, build_score_prom
 from quest_board import QuestBoard
 from questnode import AnswerNode, AnswerTrace, QuestNode
 from runtime.messages import AnswerScored, AnswerSubmitted, ClockTick, QuestPosted
+from operator_core import read_context, navigate
 
 logger = logging.getLogger(__name__)
 
@@ -318,47 +318,7 @@ class AsyncOperator:
             if not graph.V:
                 return [], [], ""
             self.current.bind(graph.random_node())
-        start = self.current.get()
-        node_names: list[str] = [start.name]
-        path_edges: list[tuple[str, str]] = []
-        context_parts: list[str] = []
-
-        visited: list[Node] = [start]
-        current = start
-        for _ in range(node_limit - 1):
-            nxt, edge = current.sample_l2()
-            if edge is None:
-                break
-            path_edges.append((current.name, nxt.name))
-            node_names.append(nxt.name)
-            visited.append(nxt)
-            current = nxt
-
-        for i, node in enumerate(visited):
-            if node.content:
-                tag = f"【材料{string.ascii_uppercase[i]}】" if i < 26 else f"【材料{i+1}】"
-                context_parts.append(f"{tag}「{node.title}」：\n{node.content}")
-
-        context_text = "\n\n---\n\n".join(context_parts)
-        return node_names, path_edges, context_text
+        return read_context(self.current.get(), node_limit)
 
     def _navigate_to(self, graph, target: Node, steps: int = 3):
-        current = self.current.get()
-        for _ in range(steps):
-            if current is target:
-                self.current.bind(target)
-                return
-            for edge in current.outlinks:
-                if edge.target is target:
-                    self.current.bind(target)
-                    return
-            nxt, _ = current.sample_l1()
-            if nxt is current:
-                break
-            self.current.bind(nxt)
-            current = nxt
-        try:
-            current.link_to(target, random.uniform(0.2, 0.5))
-        except ValueError:
-            pass
-        self.current.bind(target)
+        navigate(self.current, target, steps)
