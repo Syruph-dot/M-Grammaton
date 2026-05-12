@@ -23,13 +23,22 @@ class AsyncOperator:
     def __init__(
         self,
         operator_id: str,
-        runtime,
+        *,
+        graph,
+        board,
+        bus,
+        running_ref,
         decider=None,
         llm_client=None,
         persona: Persona | None = None,
+        monitor=None,
     ):
         self.id = operator_id
-        self.runtime = runtime
+        self.graph = graph
+        self.board = board
+        self.bus = bus
+        self._running_ref = running_ref
+        self.monitor = monitor
         self.decider = decider
         self.llm_client = llm_client
         self.persona = persona if persona is not None else random_persona()
@@ -41,28 +50,25 @@ class AsyncOperator:
 
     def bind(self, node):
         self.current.bind(node)
-        monitor = getattr(self.runtime, "monitor", None)
-        if monitor:
-            monitor.update_node(self.id, node.name)
+        if self.monitor:
+            self.monitor.update_node(self.id, node.name)
         return self
 
     async def run(self):
         logger.info("[%s] 启动 Operator 主循环", self.id)
-        monitor = getattr(self.runtime, "monitor", None)
-        if monitor:
-            monitor.update_mbti(self.id, str(self.persona.mbti))
+        if self.monitor:
+            self.monitor.update_mbti(self.id, str(self.persona.mbti))
             if self.current:
-                monitor.update_node(self.id, self.current.get().name)
+                self.monitor.update_node(self.id, self.current.get().name)
 
-        while self.runtime.running:
+        while self._running_ref[0]:
             try:
-                inbox = self.runtime.bus
-                for msg in inbox.drain(self.id):
+                for msg in self.bus.drain(self.id):
                     await self._handle(msg)
                     if random.random() > self.patience: break
 
-                graph = self.runtime.graph
-                board = self.runtime.board
+                graph = self.graph
+                board = self.board
 
                 action = await self.decider.choose(
                     operator=self,
@@ -79,7 +85,7 @@ class AsyncOperator:
                     case "ask":
                         quest = await self._ask(graph, board)
                         if quest is not None:
-                            await self.runtime.broadcast(
+                            await self.bus.broadcast(
                                 QuestPosted(
                                     quest_id=quest.name,
                                     quester_id=self.id,
@@ -91,7 +97,7 @@ class AsyncOperator:
                         if action.target is not None:
                             ans = await self._answer(action.target, graph, board)
                             if ans is not None:
-                                await self.runtime.broadcast(
+                                await self.bus.broadcast(
                                     AnswerSubmitted(
                                         quest_id=action.target.name,
                                         answerer_id=self.id,
@@ -106,12 +112,12 @@ class AsyncOperator:
                         pass
                     case "sleep":
                         await asyncio.sleep(3.0)
-                        if monitor:
-                            monitor.report_action(self.id, "sleep")
+                        if self.monitor:
+                            self.monitor.report_action(self.id, "sleep")
                         continue
 
-                if monitor:
-                    monitor.report_action(self.id, action.type, detail)
+                if self.monitor:
+                    self.monitor.report_action(self.id, action.type, detail)
             except asyncio.CancelledError:
                 logger.info("[%s]  Operator 被取消", self.id)
                 break
@@ -160,9 +166,8 @@ class AsyncOperator:
         self.current.bind(nxt)
         logger.info("[%s] 漫游至 %s", self.id, nxt.name)
 
-        monitor = getattr(self.runtime, "monitor", None)
-        if monitor:
-            monitor.update_node(self.id, nxt.name)
+        if self.monitor:
+            self.monitor.update_node(self.id, nxt.name)
 
     async def _ask(self, graph, board) -> QuestNode | None:
         content = None
@@ -185,14 +190,13 @@ class AsyncOperator:
         self.current.bind(quest)
         logger.info("[%s] 提问: %s — %s", self.id, quest.name, quest.content[:60])
 
-        monitor = getattr(self.runtime, "monitor", None)
-        if monitor:
-            monitor.update_quests(self.id, len(self.submitted_quests))
-            monitor.update_node(self.id, quest.name)
+        if self.monitor:
+            self.monitor.update_quests(self.id, len(self.submitted_quests))
+            self.monitor.update_node(self.id, quest.name)
         return quest
 
     async def _llm_ask(self) -> str | None:
-        _, _, context_text = self._read_for_quest(graph=self.runtime.graph)
+        _, _, context_text = self._read_for_quest(graph=self.graph)
         if not context_text:
             return None
 
@@ -286,7 +290,7 @@ class AsyncOperator:
             novelty_score,
         )
 
-        await self.runtime.broadcast(
+        await self.bus.broadcast(
             AnswerScored(
                 quest_id=quest.name,
                 answerer_id=answerer_id,
@@ -295,10 +299,9 @@ class AsyncOperator:
             )
         )
 
-        monitor = getattr(self.runtime, "monitor", None)
-        if monitor:
+        if self.monitor:
             active = board.submitted_by(self.id)
-            monitor.update_quests(self.id, len(active))
+            self.monitor.update_quests(self.id, len(active))
 
     async def _llm_score(self, quest: QuestNode, answer_text: str) -> tuple[float, float]:
         messages = build_score_prompt(

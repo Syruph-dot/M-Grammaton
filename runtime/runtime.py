@@ -28,8 +28,11 @@ DEFAULT_OPERATOR_NAMES = ["Alice", "Bob", "Carol"]
 class OperatorRuntime:
     STK_DECAY_TICKS = 4  # stk >= 100% 后等 N 个 tick 再重检确认
 
-    def __init__(self, data_dir: str, model: str, operator_names: list[str] | None = None):
+    def __init__(self, data_dir: str, model: str, operator_names: list[str] | None = None,
+                 monitor: RuntimeMonitor | None = None):
+        self.monitor = monitor
         self.running = False
+        self._running_ref = [False]
         self.round = 0
         self._stk_decay_counter = 0
         self.data_dir = data_dir
@@ -56,9 +59,13 @@ class OperatorRuntime:
         for name in operator_names:
             op = AsyncOperator(
                 operator_id=name,
-                runtime=self,
+                graph=self.graph,
+                board=self.board,
+                bus=self.bus,
+                running_ref=self._running_ref,
                 decider=RandomDecider(),
                 llm_client=self.llm_client,
+                monitor=self.monitor,
             )
             if content_nodes:
                 op.bind(content_nodes[0])
@@ -109,6 +116,7 @@ class OperatorRuntime:
 
     async def start(self):
         self.running = True
+        self._running_ref[0] = True
         logger.info(
             "[Runtime] 启动 — %d Operators: %s",
             len(self.operators),
@@ -125,6 +133,7 @@ class OperatorRuntime:
     async def shutdown(self, sig=None):
         logger.info("[Runtime] 正在关闭...")
         self.running = False
+        self._running_ref[0] = False
         try:
             tm = TagManager()
             tm.rebuild_from_graph(self.graph)
@@ -217,8 +226,8 @@ async def main():
         data_dir=args.data_dir,
         model=args.model,
         operator_names=args.operators,
+        monitor=monitor,
     )
-    runtime.monitor = monitor
 
     # 预填充 monitor 初始状态
     for op_id, op in runtime.operators.items():
