@@ -29,7 +29,8 @@ class OperatorRuntime:
     STK_DECAY_TICKS = 4  # stk >= 100% 后等 N 个 tick 再重检确认
 
     def __init__(self, data_dir: str, model: str, operator_names: list[str] | None = None,
-                 monitor: RuntimeMonitor | None = None):
+                 monitor: RuntimeMonitor | None = None,
+                 tag_manager: TagManager | None = None):
         self.monitor = monitor
         self.running = False
         self._running_ref = [False]
@@ -37,6 +38,7 @@ class OperatorRuntime:
         self._stk_decay_counter = 0
         self.data_dir = data_dir
         self._save_interval = 10  # 每 N 个 tick 自动存盘
+        self.tag_manager = tag_manager or TagManager()
 
         self.config = Config()
         self.config.model = model
@@ -50,6 +52,8 @@ class OperatorRuntime:
 
         operator_names = operator_names or DEFAULT_OPERATOR_NAMES
         self.bus = MessageBus(operator_names)
+
+        self.tag_manager.rebuild_from_graph(self.graph)
 
         self.operators: dict[str, AsyncOperator] = {}
         content_nodes = [
@@ -135,10 +139,9 @@ class OperatorRuntime:
         self.running = False
         self._running_ref[0] = False
         try:
-            tm = TagManager()
-            tm.rebuild_from_graph(self.graph)
+            self.tag_manager.rebuild_from_graph(self.graph)
             save_graph(self.graph, self.board, self.operators,
-                       data_dir=self.data_dir, tag_manager=tm)
+                       data_dir=self.data_dir, tag_manager=self.tag_manager)
             logger.info("[Runtime] 关闭时存盘完成")
         except Exception:
             logger.exception("[Runtime] 关闭存盘失败")
@@ -194,10 +197,9 @@ class OperatorRuntime:
         if self.round % self._save_interval != 0:
             return
         try:
-            tm = TagManager()
-            tm.rebuild_from_graph(self.graph)
+            self.tag_manager.rebuild_from_graph(self.graph)
             save_graph(self.graph, self.board, self.operators,
-                       data_dir=self.data_dir, tag_manager=tm)
+                       data_dir=self.data_dir, tag_manager=self.tag_manager)
             logger.info("[Save] 自动存盘完成 (round %d)", self.round)
         except Exception:
             logger.exception("[Save] 自动存盘失败")
@@ -256,7 +258,8 @@ async def main():
         from runtime.server import run_server
 
         logger.info("[Runtime] 启动监控面板 → http://127.0.0.1:%d", args.port)
-        server_task = asyncio.create_task(run_server(monitor, port=args.port))
+        server_task = asyncio.create_task(run_server(monitor, port=args.port,
+                                                          tag_manager_instance=runtime.tag_manager))
 
     timeout_task = None
     if args.timeout > 0:

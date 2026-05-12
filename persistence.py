@@ -58,7 +58,7 @@ def save_graph(graph: MGraph, board: QuestBoard,
     if tag_manager is None:
         tag_manager = TagManager()
         tag_manager.rebuild_from_graph(graph)
-    _write_meta(meta_dir, "tags.json", {"tags": tag_manager.to_dict()})
+    _write_meta(meta_dir, "tags.json", tag_manager.to_dict())
 
     # ── 4. meta/quest_board.json ──
     _write_meta(meta_dir, "quest_board.json", board.to_dict())
@@ -159,7 +159,7 @@ def load_graph(data_dir: str = "data") -> tuple[MGraph, QuestBoard, dict[str, Op
 
     # ── 7. 加载标签索引 ──
     tags_data = _read_meta(meta_dir, "tags.json") or {}
-    tag_manager = TagManager.from_dict(tags_data.get("tags", {}))
+    tag_manager = TagManager.from_dict(tags_data)
 
     # ── 8. 提取 metadata ──
     metadata = graph_meta.get("user_metadata")
