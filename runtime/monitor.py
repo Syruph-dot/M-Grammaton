@@ -7,6 +7,7 @@ Monitor 是 Runtime 的一等公民，不是外部观察者。
 import asyncio
 import copy
 import time
+from collections import deque
 from dataclasses import dataclass, field
 
 
@@ -19,6 +20,15 @@ class OperatorSnapshot:
     active_quests: int = 0
     last_action: str = "init"
     last_detail: str = ""
+    timestamp: float = 0.0
+
+
+@dataclass
+class TokenUsageEvent:
+    operator_id: str
+    action: str
+    tokens: int
+    source: str = "estimated"
     timestamp: float = 0.0
 
 
@@ -41,6 +51,11 @@ class RuntimeMonitor:
     def __init__(self):
         self._states: dict[str, OperatorSnapshot] = {}
         self._subscribers: list[asyncio.Queue[OperatorSnapshot]] = []
+        self._event_subscribers: list[asyncio.Queue[dict]] = []
+        self._token_events = deque(maxlen=512)
+        self._total_tokens = 0
+        self._reported_requests = 0
+        self._estimated_requests = 0
 
     # ── 被 AsyncOperator 调用 ─────────────────────
 
@@ -58,6 +73,10 @@ class RuntimeMonitor:
             snap.active_quests = prev.active_quests
         self._states[op_id] = snap
         self._push(snap)
+        self._push_event({
+            "type": "operator_update",
+            "operator": self._snapshot_to_dict(snap),
+        })
 
     def update_node(self, op_id: str, node_name: str):
         s = self._states.setdefault(op_id, OperatorSnapshot(operator_id=op_id))
@@ -94,3 +113,90 @@ class RuntimeMonitor:
                 stale.append(q)
         for q in stale:
             self._subscribers.remove(q)
+
+    def subscribe_events(self) -> asyncio.Queue[dict]:
+        q: asyncio.Queue[dict] = asyncio.Queue(maxsize=128)
+        self._event_subscribers.append(q)
+        return q
+
+    def unsubscribe_events(self, q: asyncio.Queue[dict]):
+        if q in self._event_subscribers:
+            self._event_subscribers.remove(q)
+
+    def report_tokens(
+        self,
+        operator_id: str,
+        action: str,
+        tokens: int,
+        source: str = "estimated",
+        timestamp: float | None = None,
+    ):
+        event = TokenUsageEvent(
+            operator_id=operator_id,
+            action=action,
+            tokens=max(0, int(tokens or 0)),
+            source="reported" if source == "reported" else "estimated",
+            timestamp=time.time() if timestamp is None else float(timestamp),
+        )
+        self._token_events.append(event)
+        self._total_tokens += event.tokens
+        if event.source == "reported":
+            self._reported_requests += 1
+        else:
+            self._estimated_requests += 1
+        self._push_event({
+            "type": "token_usage",
+            "tokens": self._token_event_to_dict(event),
+        })
+
+    def token_snapshot(self, now: float | None = None) -> dict:
+        now = time.time() if now is None else float(now)
+        last_minute = sum(
+            event.tokens
+            for event in self._token_events
+            if now - event.timestamp <= 60.0
+        )
+        return {
+            "total": self._total_tokens,
+            "last_minute": last_minute,
+            "requests": self._reported_requests + self._estimated_requests,
+            "reported": self._reported_requests,
+            "estimated": self._estimated_requests,
+            "series": [
+                self._token_event_to_dict(event)
+                for event in self._token_events
+            ],
+        }
+
+    def _push_event(self, event: dict):
+        stale = []
+        for q in self._event_subscribers:
+            try:
+                q.put_nowait(event)
+            except asyncio.QueueFull:
+                stale.append(q)
+        for q in stale:
+            self._event_subscribers.remove(q)
+
+    @staticmethod
+    def _snapshot_to_dict(snap: OperatorSnapshot) -> dict:
+        return {
+            "id": snap.operator_id,
+            "node": snap.current_node,
+            "mbti": snap.mbti,
+            "quests": snap.active_quests,
+            "action": snap.last_action,
+            "detail": snap.last_detail,
+            "timestamp": snap.timestamp,
+        }
+
+    @staticmethod
+    def _token_event_to_dict(event: TokenUsageEvent) -> dict:
+        return {
+            "t": event.timestamp,
+            "operator_id": event.operator_id,
+            "action": event.action,
+            "tokens": event.tokens,
+            "source": event.source,
+            "timestamp": event.timestamp,
+        }
