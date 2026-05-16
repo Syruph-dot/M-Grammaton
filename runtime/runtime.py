@@ -45,7 +45,11 @@ class OperatorRuntime:
         if not self.config.validate():
             logger.warning("未配置 API Key，Operator 将使用降级模式（无 LLM 调用）")
 
-        self.llm_client = AsyncLLMClient(self.config) if self.config.api_key else None
+        self.llm_client = (
+            AsyncLLMClient(self.config, monitor=self.monitor)
+            if self.config.api_key
+            else None
+        )
 
         self.graph = self._init_graph(data_dir)
         self.board = QuestBoard()
