@@ -147,8 +147,9 @@ def test_roundtrip_preserves_all_state(tmp_path):
     assert os.path.isfile(os.path.join(meta_dir, "edges.json"))
     assert os.path.isfile(os.path.join(meta_dir, "operators.json"))
     assert os.path.isfile(os.path.join(meta_dir, "quest_board.json"))
-    assert os.path.isfile(os.path.join(data_dir, "content_A.md"))
-    assert os.path.isfile(os.path.join(data_dir, "content_B.md"))
+    assert os.path.isfile(os.path.join(data_dir, "human", "content_A.md"))
+    assert os.path.isfile(os.path.join(data_dir, "human", "content_B.md"))
+    assert os.path.isfile(os.path.join(data_dir, "operator", "artifacts.json"))
 
     # 验证无 op_*.md 文件（锚点不持久化）
     op_files = list(Path(data_dir).glob("op_*.md"))
@@ -316,8 +317,9 @@ def test_data_dir_structure(tmp_path):
 
     save_graph(g, board, operators, data_dir)
 
-    # 顶层 .md 文件
-    assert os.path.isfile(os.path.join(data_dir, "hello.md"))
+    # 人类原文文件
+    assert os.path.isfile(os.path.join(data_dir, "human", "hello.md"))
+    assert not os.path.exists(os.path.join(data_dir, "hello.md"))
 
     # 无锚点文件
     op_files = list(Path(data_dir).glob("op_*.md"))
@@ -325,6 +327,74 @@ def test_data_dir_structure(tmp_path):
 
     # meta 文件
     meta_files = os.listdir(os.path.join(data_dir, "meta"))
-    for fname in ["edges.json", "graph.json", "operators.json",
+    for fname in ["edges.json", "graph.json", "nodes.json", "operators.json",
                    "quest_board.json", "tags.json"]:
         assert fname in meta_files, f"missing meta/{fname}"
+
+
+def test_save_graph_separates_human_sources_from_operator_artifacts(tmp_path):
+    data_dir = os.path.join(tmp_path, "data")
+    g = MGraph()
+    source = g.add_node(
+        Node("source", kind="document", content="human original", mg=g)
+    )
+    board = QuestBoard()
+    quest = board.post("alice", "question?", g)
+    trace = AnswerTrace(
+        quest_name=quest.name,
+        answer_index=-1,
+        answerer_id="bob",
+        node_names=[source.name],
+    )
+    answer = board.submit_answer(quest, "bob", "operator answer", g, trace=trace)
+    operators = {"bob": Operator("bob", source)}
+
+    save_graph(g, board, operators, data_dir)
+
+    assert os.path.isfile(os.path.join(data_dir, "human", "source.md"))
+    assert not os.path.exists(os.path.join(data_dir, "source.md"))
+    assert not os.path.exists(os.path.join(data_dir, f"{quest.name}.md"))
+    artifacts_path = os.path.join(data_dir, "operator", "artifacts.json")
+    assert os.path.isfile(artifacts_path)
+
+    with open(artifacts_path, encoding="utf-8") as f:
+        artifacts = json.load(f)
+    assert artifacts["artifacts"][quest.name]["content"] == "question?"
+    assert artifacts["artifacts"][answer.name]["content"] == "operator answer"
+
+    g2, board2, _, _, _ = load_graph(data_dir)
+    loaded = {node.name: node for node in g2.V}
+    assert loaded["source"].content == "human original"
+    assert loaded[quest.name].content == "question?"
+    assert loaded[answer.name].content == "operator answer"
+    assert board2.active[0].name == quest.name
+    assert any(
+        edge.source.name == "source" and edge.target.name == answer.name
+        for edge in g2.E
+    )
+
+
+def test_save_graph_does_not_overwrite_existing_human_source(tmp_path):
+    data_dir = os.path.join(tmp_path, "data")
+    g = MGraph()
+    source = g.add_node(
+        Node("source", kind="document", content="human original", mg=g)
+    )
+    board = QuestBoard()
+    operators = {"human": Operator("human", source)}
+
+    save_graph(g, board, operators, data_dir)
+    source.content = "operator attempted mutation"
+    source.metadata["operator_note"] = "graph metadata can evolve"
+    save_graph(g, board, operators, data_dir)
+
+    source_path = os.path.join(data_dir, "human", "source.md")
+    with open(source_path, encoding="utf-8") as f:
+        text = f.read()
+    assert "human original" in text
+    assert "operator attempted mutation" not in text
+
+    g2, _, _, _, _ = load_graph(data_dir)
+    loaded_source = next(node for node in g2.V if node.name == "source")
+    assert loaded_source.content == "human original"
+    assert loaded_source.metadata["operator_note"] == "graph metadata can evolve"

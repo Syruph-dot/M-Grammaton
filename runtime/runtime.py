@@ -9,7 +9,7 @@ from pathlib import Path
 from async_llm_client import AsyncLLMClient
 from config import Config
 from mgraph import MGraph, Node
-from persistence import save_graph
+from persistence import load_graph, save_graph
 from quest_board import QuestBoard
 from questnode import AnswerNode, QuestNode
 from tag_manager import TagManager
@@ -90,6 +90,14 @@ class OperatorRuntime:
             logger.warning("data 目录不存在: %s，创建空图", data_dir)
             root.mkdir(parents=True, exist_ok=True)
             return graph
+
+        if (root / "meta" / "graph.json").is_file():
+            try:
+                loaded_graph, _board, _operators, _metadata, tag_manager = load_graph(data_dir)
+                self.tag_manager = tag_manager
+                return loaded_graph
+            except Exception:
+                logger.exception("鍔犺浇鎸佷箙鍖栧浘澶辫触: %s", data_dir)
 
         md_files = sorted(root.glob("*.md"))
         if not md_files:

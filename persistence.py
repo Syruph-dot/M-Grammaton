@@ -28,28 +28,44 @@ def save_graph(graph: MGraph, board: QuestBoard,
                tag_manager: TagManager | None = None) -> None:
     """全量保存到 data/ 目录。"""
     root = Path(data_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    human_dir = root / "human"
+    operator_dir = root / "operator"
     meta_dir = root / "meta"
+    human_dir.mkdir(parents=True, exist_ok=True)
+    operator_dir.mkdir(parents=True, exist_ok=True)
     meta_dir.mkdir(parents=True, exist_ok=True)
 
-    # ── 1. 每个节点写 .md（原子写入） ──
-    saved_names: set[str] = set()
+    # ── 1. 分离人类原文与 Operator 产物 ──
+    node_index = {}
+    operator_artifacts = {}
     for node in graph.V:
         if not node.name:
             continue
-        md_text = _node_to_md(node)
-        file_path = root / f"{node.name}.md"
-        tmp_path = root / f"{node.name}.md.tmp"
-        tmp_path.write_text(md_text, encoding="utf-8")
-        os.replace(str(tmp_path), str(file_path))
-        saved_names.add(node.name)
+        fm = _node_frontmatter(node)
+        if _is_operator_node(node):
+            node_index[node.name] = {
+                "storage": "operator",
+                "frontmatter": fm,
+            }
+            operator_artifacts[node.name] = {
+                "frontmatter": fm,
+                "content": node.content or "",
+            }
+        else:
+            node_index[node.name] = {
+                "storage": "human",
+                "content_ref": f"human/{node.name}.md",
+                "frontmatter": fm,
+            }
+            _save_human_source_once(node, human_dir)
 
-    # 清理不再属于图的 .md 文件
-    for existing in root.glob("*.md"):
-        if existing.stem not in saved_names:
-            try:
-                existing.unlink()
-            except OSError:
-                pass
+    # 节点索引连接图节点与真实内容存储。
+    _write_meta(meta_dir, "nodes.json", {"nodes": node_index})
+    _write_json_file(
+        operator_dir / "artifacts.json",
+        {"artifacts": operator_artifacts},
+    )
 
     # ── 2. meta/edges.json ──
     _write_meta(meta_dir, "edges.json", {"edges": graph.serialize_edges()})
@@ -108,13 +124,18 @@ def load_graph(data_dir: str = "data") -> tuple[MGraph, QuestBoard, dict[str, Op
     # ── 1. 加载所有节点 ──
     pending_parent: dict[str, str | None] = {}
     pending_stk: dict[str, list[list]] = {}
-    for md_file in sorted(root.glob("*.md")):
-        md_text = md_file.read_text(encoding="utf-8")
-        node, parent_name, stk_raw = _md_to_node(md_text, graph)
-        node_map[node.name] = node
-        pending_parent[node.name] = parent_name
-        if stk_raw:
-            pending_stk[node.name] = stk_raw
+    nodes_data = _read_meta(meta_dir, "nodes.json")
+    if nodes_data is not None:
+        _load_indexed_nodes(root, nodes_data, graph, node_map,
+                            pending_parent, pending_stk)
+    else:
+        for md_file in sorted(root.glob("*.md")):
+            md_text = md_file.read_text(encoding="utf-8")
+            node, parent_name, stk_raw = _md_to_node(md_text, graph)
+            node_map[node.name] = node
+            pending_parent[node.name] = parent_name
+            if stk_raw:
+                pending_stk[node.name] = stk_raw
 
     # ── 2. 重建父子关系 ──
     for node_name, parent_name in pending_parent.items():
@@ -180,6 +201,87 @@ def save_node(node: Node, data_dir: str = "data") -> None:
 
 
 # ── 序列化辅助 ─────────────────────────────────────
+
+def _is_operator_node(node: Node) -> bool:
+    return isinstance(node, (QuestNode, AnswerNode))
+
+
+def _node_frontmatter(node: Node) -> dict:
+    fm = node.to_dict()
+    fm["stk"] = compress_stk(serialize_stk(node.stk))
+    return fm
+
+
+def _save_human_source_once(node: Node, human_dir: Path) -> None:
+    file_path = human_dir / f"{node.name}.md"
+    if file_path.exists():
+        return
+    _write_text_file(file_path, _node_to_md(node))
+
+
+def _write_text_file(file_path: Path, text: str) -> None:
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = file_path.with_name(f"{file_path.name}.tmp")
+    tmp_path.write_text(text, encoding="utf-8")
+    os.replace(str(tmp_path), str(file_path))
+
+
+def _write_json_file(file_path: Path, data: dict) -> None:
+    _write_text_file(
+        file_path,
+        json.dumps(data, ensure_ascii=False, indent=2),
+    )
+
+
+def _load_indexed_nodes(
+    root: Path,
+    nodes_data: dict,
+    graph: MGraph,
+    node_map: dict[str, Node],
+    pending_parent: dict[str, str | None],
+    pending_stk: dict[str, list[list]],
+) -> None:
+    artifacts = _read_json_file(root / "operator" / "artifacts.json").get(
+        "artifacts",
+        {},
+    )
+    for node_name, entry in nodes_data.get("nodes", {}).items():
+        if entry.get("storage") == "operator":
+            artifact = artifacts.get(node_name, {})
+            fm = artifact.get("frontmatter") or entry.get("frontmatter") or {}
+            body = artifact.get("content", "")
+            node, parent_name, stk_raw = _dict_to_node(fm, body, graph)
+        else:
+            content_ref = entry.get("content_ref") or f"human/{node_name}.md"
+            md_text = (root / content_ref).read_text(encoding="utf-8")
+            _source_fm, body = _parse_frontmatter(md_text)
+            fm = entry.get("frontmatter") or _source_fm
+            node, parent_name, stk_raw = _dict_to_node(fm, body, graph)
+        node_map[node.name] = node
+        pending_parent[node.name] = parent_name
+        if stk_raw:
+            pending_stk[node.name] = stk_raw
+
+
+def _dict_to_node(fm: dict, body: str, graph: MGraph) -> tuple[Node, str | None, list[list]]:
+    parent_name = fm.get("parent")
+    stk_raw = fm.get("stk", [])
+    kind = fm.get("kind", "document")
+    node_map = {
+        "quest": QuestNode.from_dict,
+        "answer": AnswerNode.from_dict,
+    }
+    factory = node_map.get(kind, Node.from_dict)
+    node = factory(fm, body, graph)
+    return node, parent_name, stk_raw
+
+
+def _read_json_file(file_path: Path) -> dict:
+    if not file_path.is_file():
+        return {}
+    with open(file_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
 
 def _write_meta(meta_dir: Path, filename: str, data: dict) -> None:
     """原子写入 meta 文件。"""

@@ -395,6 +395,8 @@ class MGraph():
     def force_normalize(self):
         for node in self.V:
             total = sum(link.value**2 for link in node.outlinks)**0.5
+            if total == 0:
+                continue
             for link in node.outlinks:
                 link.set_raw_value(link.value / total)
 

@@ -1,5 +1,22 @@
 # M-Grammaton Runtime — 领域语汇
 
+## Content Ownership
+
+### Human Source
+Human Source 是人类输入的原始 Markdown 文本。它是珍稀内容，只读保存，Operator 不能改写。系统只能读取、引用、评论、摘要或提出修改意见。人类文件存储在 `data/human/*.md`，保持扁平文档形态。
+
+### Operator Artifact
+Operator Artifact 是 Operator 生成的派生内容，例如 Quest、Answer、摘要、评论、建议补丁、评分说明。它可以大量生成，不要求一条产物一个 Markdown 文件。运行时将其聚合存储在 `data/operator/artifacts.json`。
+
+### Graph Node
+Graph Node 是图中的逻辑节点，不等同于文件。节点通过稳定 name 参与边、权重、stk、QuestBoard、AnswerTrace。节点内容可以来自 Human Source，也可以来自 Operator Artifact。
+
+### Graph Topology
+Graph Topology 存在于 `data/meta/edges.json` 和 `data/meta/nodes.json`。边只连接 Graph Node，不关心内容实际存储在 Markdown 还是 artifact store。因此 human ↔ operator、human ↔ human、operator ↔ operator 都是同一张图。
+
+### Edit Boundary
+Operator 对 Human Source 的任何“修改”都必须表示为新的 Operator Artifact，例如建议、批注或 patch_suggestion。系统不得把这类建议自动写回 human Markdown。若 human Markdown 变化，视为人类编辑后的新源内容。
+
 ## Runtime
 
 ### AsyncOperator
