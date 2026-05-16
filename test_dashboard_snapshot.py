@@ -54,3 +54,10 @@ def test_dashboard_snapshot_contains_runtime_graph_tokens_and_quests():
     }
     assert snapshot["quests"]["active"] == []
     assert snapshot["quests"]["completed"] == []
+
+    # token throughput fields
+    assert snapshot["tokens"]["tokens_per_sec"] == 0.9  # 55 / 60
+    assert len(snapshot["tokens"]["tps_series"]) == 24   # 120s / 5s
+    # event at ts=125, now=140 → age=15 → bucket index = 23 - (15/5) = 20
+    assert snapshot["tokens"]["tps_series"][20] == 11.0  # 55 / 5
+    assert all(v == 0.0 for i, v in enumerate(snapshot["tokens"]["tps_series"]) if i != 20)

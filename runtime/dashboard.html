@@ -79,7 +79,7 @@
         <div id="operators"></div>
       </section>
       <section class="panel">
-        <div class="panel-header"><div class="panel-title">Token Throughput</div><div class="panel-meta" id="token-meta">0/min</div></div>
+        <div class="panel-header"><div class="panel-title">Token Throughput</div><div class="panel-meta" id="token-meta">0 t/s</div></div>
         <div id="token-chart"></div>
       </section>
     </aside>
@@ -289,7 +289,7 @@ function renderSnapshot(snapshot) {
     : 'runtime not ready';
   renderKpis(snapshot);
   renderOperators(snapshot.operators || []);
-  renderTokenChart(snapshot.tokens || {series: []});
+  renderTokenChart(snapshot.tokens || {});
   renderQuests(snapshot.quests || {active: [], completed: []});
   mergeGraph(snapshot.graph || {version: 0, nodes: [], links: []});
 }
@@ -306,7 +306,7 @@ function renderKpis(snapshot) {
     ['Completed', stats.completed_quests],
     ['STK Entries', stats.stk_entries],
     ['Total Tokens', tokens.total],
-    ['Tokens / Min', tokens.last_minute],
+    ['Throughput', (tokens.tokens_per_sec ?? 0) + ' t/s'],
   ];
   document.getElementById('kpis').innerHTML = cells.map(([label, value]) =>
     `<div class="kpi"><div class="kpi-label">${esc(label)}</div><div class="kpi-value">${fmt(value)}</div></div>`
@@ -326,23 +326,30 @@ function renderOperators(operators) {
 }
 
 function renderTokenChart(tokens) {
-  document.getElementById('token-meta').textContent = `${fmt(tokens.last_minute || 0)}/min`;
+  document.getElementById('token-meta').textContent = `${fmt(tokens.tokens_per_sec ?? 0)} t/s`;
   const el = document.getElementById('token-chart');
   const width = Math.max(280, el.clientWidth - 20);
   const height = Math.max(130, el.clientHeight - 20);
-  const series = (tokens.series || []).slice(-120);
   el.innerHTML = '';
   const chart = d3.select(el).append('svg').attr('viewBox', [0, 0, width, height]);
   chart.append('rect').attr('width', width).attr('height', height).attr('rx', 6).attr('fill', '#101820');
+  const series = tokens.tps_series || [];
   if (!series.length) {
-    chart.append('text').attr('x', width / 2).attr('y', height / 2).attr('text-anchor', 'middle').attr('fill', '#7c8794').attr('font-size', 12).text('No token events');
+    chart.append('text').attr('x', width / 2).attr('y', height / 2).attr('text-anchor', 'middle').attr('fill', '#7c8794').attr('font-size', 12).text('No token data');
     return;
   }
-  const x = d3.scaleLinear().domain(d3.extent(series, d => d.t)).range([12, width - 12]);
-  const y = d3.scaleLinear().domain([0, d3.max(series, d => d.tokens) || 1]).nice().range([height - 18, 12]);
-  const line = d3.line().x(d => x(d.t)).y(d => y(d.tokens)).curve(d3.curveMonotoneX);
-  chart.append('path').datum(series).attr('fill', 'none').attr('stroke', '#79d8b0').attr('stroke-width', 2).attr('d', line);
-  chart.selectAll('circle').data(series).join('circle').attr('cx', d => x(d.t)).attr('cy', d => y(d.tokens)).attr('r', 2.5).attr('fill', '#f2c94c');
+  const n = series.length;
+  const pts = series.map((v, i) => ({x: i, y: v}));
+  const yMax = d3.max(series) || 1;
+  const x = d3.scalePoint().domain(pts.map(d => d.x)).range([12, width - 12]);
+  const y = d3.scaleLinear().domain([0, yMax]).nice().range([height - 18, 12]);
+  const area = d3.area().x(d => x(d.x)).y0(y(0)).y1(d => y(d.y)).curve(d3.curveMonotoneX);
+  chart.append('path').datum(pts).attr('fill', '#1d4a3a').attr('opacity', 0.5).attr('d', area);
+  const line = d3.line().x(d => x(d.x)).y(d => y(d.y)).curve(d3.curveMonotoneX);
+  chart.append('path').datum(pts).attr('fill', 'none').attr('stroke', '#79d8b0').attr('stroke-width', 2).attr('d', line);
+  chart.selectAll('circle').data(pts).join('circle').attr('cx', d => x(d.x)).attr('cy', d => y(d.y)).attr('r', 2).attr('fill', '#79d8b0').attr('opacity', 0.7);
+  // Y axis label
+  chart.append('text').attr('x', width - 8).attr('y', 16).attr('text-anchor', 'end').attr('fill', '#7c8794').attr('font-size', 10).text('t/s');
 }
 
 function renderQuests(quests) {

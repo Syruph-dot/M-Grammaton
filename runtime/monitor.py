@@ -52,7 +52,7 @@ class RuntimeMonitor:
         self._states: dict[str, OperatorSnapshot] = {}
         self._subscribers: list[asyncio.Queue[OperatorSnapshot]] = []
         self._event_subscribers: list[asyncio.Queue[dict]] = []
-        self._token_events = deque(maxlen=512)
+        self._token_events = deque(maxlen=8192)
         self._total_tokens = 0
         self._reported_requests = 0
         self._estimated_requests = 0
@@ -156,9 +156,21 @@ class RuntimeMonitor:
             for event in self._token_events
             if now - event.timestamp <= 60.0
         )
+        # 5s 分桶，覆盖最近 120s，用于前端吞吐率图表
+        bucket_size = 5.0
+        num_buckets = 24  # 120 / 5
+        bucket_tokens = [0.0] * num_buckets
+        for event in self._token_events:
+            age = now - event.timestamp
+            if 0 <= age < num_buckets * bucket_size:
+                idx = int(age / bucket_size)
+                bucket_tokens[num_buckets - 1 - idx] += event.tokens
+        tps_series = [round(t / bucket_size, 1) for t in bucket_tokens]
+
         return {
             "total": self._total_tokens,
             "last_minute": last_minute,
+            "tokens_per_sec": round(last_minute / 60.0, 1),
             "requests": self._reported_requests + self._estimated_requests,
             "reported": self._reported_requests,
             "estimated": self._estimated_requests,
@@ -166,6 +178,7 @@ class RuntimeMonitor:
                 self._token_event_to_dict(event)
                 for event in self._token_events
             ],
+            "tps_series": tps_series,
         }
 
     def _push_event(self, event: dict):
