@@ -174,7 +174,7 @@ class OperatorRuntime:
             self._stk_decay_counter = 0
             return
 
-        ratio = len(self.graph.stk) / len(self.graph.V)
+        ratio = self._stk_ratio()
 
         if ratio < 1.0:
             self._stk_decay_counter = 0
@@ -193,12 +193,18 @@ class OperatorRuntime:
             return
 
         # 倒计时归零，执行最终判定
-        ratio = len(self.graph.stk) / len(self.graph.V)
+        ratio = self._stk_ratio()
         if ratio >= 1.0:
             removed = self.graph.decay_stk()
             logger.info("[Decay] 触发腐烂: 移除 %d 条 stk 条目", removed)
         else:
             logger.debug("[Decay] 重检时 stk 已回落 (%.1f%%), 跳过", ratio * 100)
+
+    def _stk_ratio(self) -> float:
+        if not self.graph.V:
+            return 0.0
+        total = sum(len(getattr(node, "stk", []) or []) for node in self.graph.V)
+        return total / len(self.graph.V)
 
     async def _auto_save(self):
         if self.round % self._save_interval != 0:

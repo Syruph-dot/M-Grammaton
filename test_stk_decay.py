@@ -1,6 +1,8 @@
 """测试：Stk 腐烂机制 —— mgraph.MGraph.decay_stk()。"""
 
+import asyncio
 from mgraph import MGraph, Node, Edge, insert_response
+from runtime.runtime import OperatorRuntime
 
 
 def _make_graph_with_stk(node_count: int, stk_per_node: int,
@@ -98,3 +100,15 @@ class TestStkDecay:
         # 最终所有 stk 可能为空
         total = sum(len(n.stk) for n in g.V)
         assert total >= 0
+
+    def test_runtime_check_stk_decay_uses_node_stk_total(self, tmp_path):
+        """Runtime 层应按所有节点的 stk 总数计算满载比例。"""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        runtime = OperatorRuntime(str(data_dir), model="deepseek-chat", operator_names=[])
+        runtime.graph = _make_graph_with_stk(3, 0)
+        runtime._stk_decay_counter = 2
+
+        asyncio.run(runtime._check_stk_decay())
+
+        assert runtime._stk_decay_counter == 0
