@@ -1,0 +1,411 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M-Grammaton Runtime Dashboard</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:#101418;color:#e5e7eb;font-family:Inter,"Segoe UI","Microsoft YaHei",Arial,sans-serif}
+  body{padding:18px}
+  .shell{max-width:1800px;margin:0 auto}
+  .topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:14px}
+  h1{font-size:20px;line-height:1.2;margin:0;font-weight:700;letter-spacing:0}
+  .subtitle{font-size:12px;color:#8b949e;margin-top:4px}
+  .nav{display:flex;gap:10px;font-size:12px;white-space:nowrap}
+  .nav a{color:#66c2ff;text-decoration:none}.nav a:hover{text-decoration:underline}
+  .kpis{display:grid;grid-template-columns:repeat(8,minmax(120px,1fr));gap:8px;margin-bottom:12px}
+  .kpi{background:#171d23;border:1px solid #2d3742;border-radius:8px;padding:10px 12px;min-height:68px}
+  .kpi-label{font-size:11px;color:#91a1b2;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+  .kpi-value{font-size:22px;font-weight:700;margin-top:6px;color:#f8fafc;font-variant-numeric:tabular-nums}
+  .dashboard-grid{display:grid;grid-template-columns:minmax(520px,1fr) 390px;gap:12px;min-height:610px}
+  .graph-panel{position:relative;background:#121820;border:1px solid #2d3742;border-radius:8px;overflow:hidden;min-height:610px}
+  #graph{display:block;width:100%;height:100%;min-height:610px}
+  #graph-empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#7c8794;font-size:14px;pointer-events:none}
+  .side-panel{display:grid;grid-template-rows:1fr 220px;gap:12px;min-height:610px}
+  .panel{background:#171d23;border:1px solid #2d3742;border-radius:8px;overflow:hidden}
+  .panel-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #2d3742}
+  .panel-title{font-size:13px;font-weight:700;color:#d7dee7}
+  .panel-meta{font-size:11px;color:#7c8794}
+  #operators{height:100%;overflow:auto}
+  .op-row{display:grid;grid-template-columns:70px 58px 1fr 72px;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid #242d36;font-size:12px}
+  .op-row:last-child{border-bottom:0}
+  .op-id{font-weight:700;color:#f8fafc;overflow:hidden;text-overflow:ellipsis}
+  .badge{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:#25313d;color:#a7d7ff;min-width:44px;padding:2px 8px;font-size:11px}
+  .op-node{color:#b8c2cc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .op-action{font-variant-numeric:tabular-nums;text-align:right;color:#79d8b0}
+  #token-chart{height:170px;padding:8px 10px 12px}
+  #token-chart svg{width:100%;height:100%}
+  .bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;min-height:220px}
+  #events,#quests{max-height:260px;overflow:auto}
+  .event-row,.quest-row{display:grid;grid-template-columns:92px 1fr;gap:10px;padding:8px 12px;border-bottom:1px solid #242d36;font-size:12px}
+  .event-type,.quest-id{color:#66c2ff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .event-detail,.quest-detail{color:#b8c2cc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .link{stroke:#3a4652;stroke-opacity:.55}
+  .node{stroke:#111820;stroke-width:1.5px;cursor:pointer}
+  .node.document{fill:#5da9e9}.node.quest{fill:#f2c94c}.node.answer{fill:#79d8b0}.node.active{stroke:#ff7a59;stroke-width:3px}
+  .label{fill:#cbd5df;font-size:11px;paint-order:stroke;stroke:#121820;stroke-width:3px;stroke-linejoin:round;pointer-events:none}
+  .tooltip{position:absolute;z-index:10;background:#0b1015;border:1px solid #344250;border-radius:6px;padding:8px 10px;color:#e5e7eb;font-size:12px;pointer-events:none;opacity:0;max-width:280px;box-shadow:0 12px 24px rgba(0,0,0,.32)}
+  .error{color:#ff9b8f;padding:18px}
+  @media (max-width:1100px){
+    body{padding:10px}.kpis{grid-template-columns:repeat(2,minmax(130px,1fr))}
+    .dashboard-grid,.bottom-grid{grid-template-columns:1fr}.side-panel{grid-template-rows:auto auto}
+    .graph-panel,#graph{min-height:520px}.topbar{align-items:flex-start;flex-direction:column}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div>
+      <h1>M-Grammaton Runtime Dashboard</h1>
+      <div class="subtitle" id="status">connecting...</div>
+    </div>
+    <nav class="nav"><a href="/tags/ui">Tag UI</a><a href="/snapshot">Legacy Snapshot</a></nav>
+  </div>
+
+  <section class="kpis" id="kpis"></section>
+
+  <main class="dashboard-grid">
+    <section class="graph-panel">
+      <svg id="graph"></svg>
+      <div id="graph-empty">No graph data</div>
+      <div class="tooltip" id="tooltip"></div>
+    </section>
+    <aside class="side-panel">
+      <section class="panel">
+        <div class="panel-header"><div class="panel-title">Operators</div><div class="panel-meta" id="operator-count">0</div></div>
+        <div id="operators"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-header"><div class="panel-title">Token Throughput</div><div class="panel-meta" id="token-meta">0/min</div></div>
+        <div id="token-chart"></div>
+      </section>
+    </aside>
+  </main>
+
+  <section class="bottom-grid">
+    <section class="panel">
+      <div class="panel-header"><div class="panel-title">Recent Events</div><div class="panel-meta" id="event-count">0</div></div>
+      <div id="events"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-header"><div class="panel-title">Quests</div><div class="panel-meta" id="quest-count">0</div></div>
+      <div id="quests"></div>
+    </section>
+  </section>
+</div>
+
+<script>
+const state = {
+  snapshot: null,
+  events: [],
+  nodes: [],
+  links: [],
+  nodeById: new Map(),
+  linkById: new Map(),
+  graphVersion: null,
+  source: null
+};
+
+const svg = d3.select('#graph');
+const graphPanel = document.querySelector('.graph-panel');
+const tooltip = d3.select('#tooltip');
+const root = svg.append('g');
+const linkLayer = root.append('g');
+const nodeLayer = root.append('g');
+const labelLayer = root.append('g');
+
+const simulation = d3.forceSimulation(state.nodes)
+  .force('link', d3.forceLink(state.links).id(d => d.id).distance(d => 90 + 80 * (1 - Math.min(1, d.weight || 0))))
+  .force('charge', d3.forceManyBody().strength(d => d.kind === 'document' ? -190 : -150))
+  .force('collide', d3.forceCollide().radius(d => 18 + Math.min(14, (d.degree || 0) * 2)).iterations(2))
+  .force('x', d3.forceX(d => kindAnchor(d).x).strength(0.055))
+  .force('y', d3.forceY(d => kindAnchor(d).y).strength(0.065))
+  .force('center', d3.forceCenter(400, 300))
+  .velocityDecay(0.32);
+
+let linkSel = linkLayer.selectAll('line');
+let nodeSel = nodeLayer.selectAll('circle');
+let labelSel = labelLayer.selectAll('text');
+let framePending = false;
+
+svg.call(d3.zoom().scaleExtent([0.18, 5]).on('zoom', event => {
+  root.attr('transform', event.transform);
+}));
+
+simulation.on('tick', () => {
+  if (framePending) return;
+  framePending = true;
+  requestAnimationFrame(() => {
+    framePending = false;
+    linkSel
+      .attr('x1', d => d.source.x)
+      .attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x)
+      .attr('y2', d => d.target.y);
+    nodeSel.attr('cx', d => d.x).attr('cy', d => d.y);
+    labelSel.attr('x', d => d.x + 12).attr('y', d => d.y + 4);
+  });
+});
+
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+}
+
+function fmt(value) {
+  return new Intl.NumberFormat('en-US').format(Math.round(Number(value) || 0));
+}
+
+function panelSize() {
+  const box = graphPanel.getBoundingClientRect();
+  return {width: Math.max(320, box.width), height: Math.max(320, box.height)};
+}
+
+function kindAnchor(d) {
+  const {width, height} = panelSize();
+  if (d.kind === 'quest') return {x: width * 0.72, y: height * 0.32};
+  if (d.kind === 'answer') return {x: width * 0.72, y: height * 0.70};
+  return {x: width * 0.34, y: height * 0.52};
+}
+
+function resizeGraph() {
+  const {width, height} = panelSize();
+  svg.attr('viewBox', [0, 0, width, height]).attr('width', width).attr('height', height);
+  simulation.force('center', d3.forceCenter(width / 2, height / 2));
+  simulation.alpha(0.18).restart();
+}
+
+function mergeGraph(graph) {
+  const oldNodes = state.nodeById;
+  const newNodes = graph.nodes.map(item => {
+    const old = oldNodes.get(item.id);
+    return Object.assign(old || {}, item);
+  });
+  const newNodeById = new Map(newNodes.map(node => [node.id, node]));
+  const newLinks = graph.links
+    .filter(link => newNodeById.has(link.source) && newNodeById.has(link.target))
+    .map(link => Object.assign(state.linkById.get(link.id) || {}, link));
+
+  state.nodes = newNodes;
+  state.links = newLinks;
+  state.nodeById = newNodeById;
+  state.linkById = new Map(newLinks.map(link => [link.id, link]));
+
+  document.getElementById('graph-empty').style.display = state.nodes.length ? 'none' : 'flex';
+
+  linkSel = linkLayer.selectAll('line')
+    .data(state.links, d => d.id)
+    .join(
+      enter => enter.append('line').attr('class', 'link'),
+      update => update,
+      exit => exit.remove()
+    )
+    .attr('stroke-width', d => Math.max(1, Math.min(7, 1 + (d.weight || 0) * 5)));
+
+  nodeSel = nodeLayer.selectAll('circle')
+    .data(state.nodes, d => d.id)
+    .join(
+      enter => enter.append('circle')
+        .attr('class', d => 'node ' + d.kind)
+        .attr('r', d => 8 + Math.min(10, d.degree || 0))
+        .on('mouseenter', showTooltip)
+        .on('mousemove', moveTooltip)
+        .on('mouseleave', hideTooltip)
+        .call(d3.drag()
+          .on('start', dragStart)
+          .on('drag', dragged)
+          .on('end', dragEnd)),
+      update => update,
+      exit => exit.remove()
+    )
+    .attr('class', d => 'node ' + d.kind + ((d.activeOperators && d.activeOperators.length) ? ' active' : ''))
+    .attr('r', d => 8 + Math.min(12, d.degree || 0) + ((d.activeOperators && d.activeOperators.length) ? 3 : 0));
+
+  labelSel = labelLayer.selectAll('text')
+    .data(state.nodes.filter(d => d.kind !== 'document' || (d.activeOperators && d.activeOperators.length)), d => d.id)
+    .join(
+      enter => enter.append('text').attr('class', 'label'),
+      update => update,
+      exit => exit.remove()
+    )
+    .text(d => shortLabel(d.label || d.id));
+
+  simulation.nodes(state.nodes);
+  simulation.force('link').links(state.links);
+  simulation.alpha(state.graphVersion === graph.version ? 0.12 : 0.35).restart();
+  state.graphVersion = graph.version;
+}
+
+function shortLabel(text) {
+  text = String(text || '');
+  return text.length > 18 ? text.slice(0, 17) + '...' : text;
+}
+
+function showTooltip(event, d) {
+  tooltip.style('opacity', 1).html(
+    `<strong>${esc(d.id)}</strong><br>` +
+    `kind: ${esc(d.kind)}<br>` +
+    `degree: ${fmt(d.degree)}<br>` +
+    `operators: ${esc((d.activeOperators || []).join(', ') || '-')}` +
+    (d.tags && d.tags.length ? `<br>tags: ${esc(d.tags.join(', '))}` : '')
+  );
+  moveTooltip(event);
+}
+
+function moveTooltip(event) {
+  const box = graphPanel.getBoundingClientRect();
+  tooltip
+    .style('left', (event.clientX - box.left + 14) + 'px')
+    .style('top', (event.clientY - box.top + 14) + 'px');
+}
+
+function hideTooltip() {
+  tooltip.style('opacity', 0);
+}
+
+function dragStart(event, d) {
+  if (!event.active) simulation.alphaTarget(0.25).restart();
+  d.fx = d.x;
+  d.fy = d.y;
+}
+
+function dragged(event, d) {
+  d.fx = event.x;
+  d.fy = event.y;
+}
+
+function dragEnd(event, d) {
+  if (!event.active) simulation.alphaTarget(0);
+  d.fx = null;
+  d.fy = null;
+}
+
+function renderSnapshot(snapshot) {
+  state.snapshot = snapshot;
+  document.getElementById('status').textContent = snapshot.ready
+    ? `running=${snapshot.runtime.running} round=${snapshot.runtime.round} uptime=${fmt(snapshot.runtime.uptime_seconds)}s`
+    : 'runtime not ready';
+  renderKpis(snapshot);
+  renderOperators(snapshot.operators || []);
+  renderTokenChart(snapshot.tokens || {series: []});
+  renderQuests(snapshot.quests || {active: [], completed: []});
+  mergeGraph(snapshot.graph || {version: 0, nodes: [], links: []});
+}
+
+function renderKpis(snapshot) {
+  const stats = snapshot.stats || {};
+  const tokens = snapshot.tokens || {};
+  const runtime = snapshot.runtime || {};
+  const cells = [
+    ['Round', runtime.round],
+    ['Nodes', stats.nodes],
+    ['Edges', stats.edges],
+    ['Active Quests', stats.active_quests],
+    ['Completed', stats.completed_quests],
+    ['STK Entries', stats.stk_entries],
+    ['Total Tokens', tokens.total],
+    ['Tokens / Min', tokens.last_minute],
+  ];
+  document.getElementById('kpis').innerHTML = cells.map(([label, value]) =>
+    `<div class="kpi"><div class="kpi-label">${esc(label)}</div><div class="kpi-value">${fmt(value)}</div></div>`
+  ).join('');
+}
+
+function renderOperators(operators) {
+  document.getElementById('operator-count').textContent = fmt(operators.length);
+  document.getElementById('operators').innerHTML = operators.length ? operators.map(op => `
+    <div class="op-row">
+      <div class="op-id">${esc(op.id)}</div>
+      <div class="badge">${esc(op.mbti || '-')}</div>
+      <div class="op-node" title="${esc(op.node || '')}">${esc(op.node || '(none)')}</div>
+      <div class="op-action">${esc(op.action || '-')}</div>
+    </div>
+  `).join('') : '<div class="event-row"><div class="event-type">empty</div><div class="event-detail">No operators reported yet</div></div>';
+}
+
+function renderTokenChart(tokens) {
+  document.getElementById('token-meta').textContent = `${fmt(tokens.last_minute || 0)}/min`;
+  const el = document.getElementById('token-chart');
+  const width = Math.max(280, el.clientWidth - 20);
+  const height = Math.max(130, el.clientHeight - 20);
+  const series = (tokens.series || []).slice(-120);
+  el.innerHTML = '';
+  const chart = d3.select(el).append('svg').attr('viewBox', [0, 0, width, height]);
+  chart.append('rect').attr('width', width).attr('height', height).attr('rx', 6).attr('fill', '#101820');
+  if (!series.length) {
+    chart.append('text').attr('x', width / 2).attr('y', height / 2).attr('text-anchor', 'middle').attr('fill', '#7c8794').attr('font-size', 12).text('No token events');
+    return;
+  }
+  const x = d3.scaleLinear().domain(d3.extent(series, d => d.t)).range([12, width - 12]);
+  const y = d3.scaleLinear().domain([0, d3.max(series, d => d.tokens) || 1]).nice().range([height - 18, 12]);
+  const line = d3.line().x(d => x(d.t)).y(d => y(d.tokens)).curve(d3.curveMonotoneX);
+  chart.append('path').datum(series).attr('fill', 'none').attr('stroke', '#79d8b0').attr('stroke-width', 2).attr('d', line);
+  chart.selectAll('circle').data(series).join('circle').attr('cx', d => x(d.t)).attr('cy', d => y(d.tokens)).attr('r', 2.5).attr('fill', '#f2c94c');
+}
+
+function renderQuests(quests) {
+  const active = quests.active || [];
+  const completed = quests.completed || [];
+  document.getElementById('quest-count').textContent = `${fmt(active.length)} active / ${fmt(completed.length)} done`;
+  const rows = [
+    ...active.map(q => Object.assign({state: 'active'}, q)),
+    ...completed.slice(-8).map(q => Object.assign({state: 'done'}, q)),
+  ];
+  document.getElementById('quests').innerHTML = rows.length ? rows.map(q => `
+    <div class="quest-row">
+      <div class="quest-id">${esc(q.state)} ${esc(q.id)}</div>
+      <div class="quest-detail">${esc((q.content || '').slice(0, 120))}</div>
+    </div>
+  `).join('') : '<div class="quest-row"><div class="quest-id">empty</div><div class="quest-detail">No quests yet</div></div>';
+}
+
+function pushEvent(event) {
+  if (event.type === 'ping') return;
+  state.events.unshift(Object.assign({at: Date.now()}, event));
+  state.events = state.events.slice(0, 60);
+  document.getElementById('event-count').textContent = fmt(state.events.length);
+  document.getElementById('events').innerHTML = state.events.map(item => {
+    const detail = item.operator ? `${item.operator.id} ${item.operator.action} ${item.operator.detail || ''}` :
+      item.tokens ? `${item.tokens.operator_id || 'llm'} ${item.tokens.action}: ${item.tokens.tokens} tokens (${item.tokens.source})` :
+      JSON.stringify(item);
+    return `<div class="event-row"><div class="event-type">${esc(item.type)}</div><div class="event-detail">${esc(detail)}</div></div>`;
+  }).join('');
+}
+
+async function fetchSnapshot() {
+  try {
+    const res = await fetch('/api/dashboard/snapshot');
+    const data = await res.json();
+    renderSnapshot(data);
+  } catch (error) {
+    document.getElementById('status').innerHTML = `<span class="error">${esc(error.message)}</span>`;
+  }
+}
+
+function connectStream() {
+  if (state.source) state.source.close();
+  state.source = new EventSource('/api/dashboard/stream');
+  state.source.addEventListener('dashboard', event => {
+    try {
+      pushEvent(JSON.parse(event.data));
+      fetchSnapshot();
+    } catch (error) {
+      pushEvent({type: 'stream_error', message: error.message});
+    }
+  });
+  state.source.onerror = () => {
+    state.source.close();
+    setTimeout(connectStream, 2000);
+  };
+}
+
+window.addEventListener('resize', resizeGraph);
+resizeGraph();
+fetchSnapshot();
+connectStream();
+setInterval(fetchSnapshot, 2000);
+</script>
+</body>
+</html>
