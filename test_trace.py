@@ -113,3 +113,27 @@ def test_answer_quest_trace_has_edges_when_path_exists():
     assert len(ans.trace.node_names) >= 2
     assert len(ans.trace.edge_refs) >= 1
     assert ans.trace.edge_refs[0] == ("start", "mid")
+
+
+def test_answer_quest_trace_records_material_modes_with_at_least_one_full():
+    g = MGraph()
+    n0 = g.add_node(Node("content_a", content="A full text", mg=g))
+    n1 = g.add_node(Node("content_b", content="B full text", mg=g))
+    n0.link_to(n1, 1.0)
+    from material_context import store_summary
+
+    store_summary(n0, "A summary", model="m", now=1.0)
+    store_summary(n1, "B summary", model="m", now=1.0)
+
+    op = Operator("bob", n0)
+    board = QuestBoard()
+    quest = board.post("alice", "q?", g)
+
+    ans = op.answer_quest(quest, board, g, answer_text="manual answer")
+
+    assert ans.trace is not None
+    assert len(ans.trace.materials) >= 1
+    assert any(item["mode"] == "full" for item in ans.trace.materials)
+    assert {item["node"] for item in ans.trace.materials}.issubset(
+        set(ans.trace.node_names)
+    )

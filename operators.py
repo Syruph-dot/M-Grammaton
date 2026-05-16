@@ -1,10 +1,16 @@
 from random import randint, uniform
 
 from mgraph import Node, NodePtr, insert_response
+from material_context import (
+    choose_answer_materials,
+    format_material_context,
+    material_refs_from_nodes,
+    material_trace_records,
+)
 from persona import Persona, random_persona
 from quest_board import QuestBoard
 from questnode import AnswerNode, AnswerTrace, QuestNode
-from operator_core import read_context, navigate
+from operator_core import read_context, read_path, navigate
 
 
 class Operator:
@@ -86,11 +92,24 @@ class Operator:
     def read_for_quest(self, node_limit: int = 3):
         return read_context(self.current.get(), node_limit)
 
+    def read_materials_for_quest(self, node_limit: int = 3):
+        node_names, path_edges, visited = read_path(self.current.get(), node_limit)
+        refs = material_refs_from_nodes(visited)
+        chosen = choose_answer_materials(refs)
+        return (
+            node_names,
+            path_edges,
+            format_material_context(chosen),
+            material_trace_records(chosen),
+        )
+
     def answer_quest(
         self, quest: QuestNode, board: QuestBoard, graph, answer_text: str = None
     ) -> AnswerNode:
         # 先阅读路径
-        node_names, path_edges, context_text = self.read_for_quest()
+        node_names, path_edges, context_text, material_records = (
+            self.read_materials_for_quest()
+        )
         # 导航到 quest 节点
         self.navigate_to(graph, quest)
         # 生成答案
@@ -105,6 +124,7 @@ class Operator:
             answerer_id=self.id,
             node_names=node_names,
             edge_refs=path_edges,
+            materials=material_records,
         )
         return board.submit_answer(quest, self.id, answer_text, graph, trace=trace)
 

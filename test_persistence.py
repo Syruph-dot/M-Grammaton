@@ -72,6 +72,14 @@ def test_answernode_md_roundtrip(tmp_path):
         quest_name="q0", answer_index=0, answerer_id="Bob",
         node_names=["A", "B"], edge_refs=[("A", "B")],
         score=80.0, feedback_applied=True,
+        materials=[
+            {
+                "node": "A",
+                "mode": "full",
+                "content_hash": "content-hash",
+                "summary_hash": None,
+            }
+        ],
     )
     a.trace = trace
     a.match_score = 85.0
@@ -101,6 +109,14 @@ def test_answernode_md_roundtrip(tmp_path):
     assert a2.trace.node_names == ["A", "B"]
     assert a2.trace.edge_refs == [("A", "B")]
     assert a2.trace.feedback_applied is True
+    assert a2.trace.materials == [
+        {
+            "node": "A",
+            "mode": "full",
+            "content_hash": "content-hash",
+            "summary_hash": None,
+        }
+    ]
     assert parent is None
 
 

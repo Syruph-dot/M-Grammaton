@@ -16,6 +16,7 @@ class AnswerTrace:
     edge_refs: list[tuple[str, str]] = field(default_factory=list)
     score: float | None = None
     feedback_applied: bool = False
+    materials: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -26,6 +27,7 @@ class AnswerTrace:
             "edge_refs": self.edge_refs,
             "score": self.score,
             "feedback_applied": self.feedback_applied,
+            "materials": self.materials,
         }
 
     @classmethod
@@ -40,6 +42,7 @@ class AnswerTrace:
             edge_refs=[tuple(p) for p in raw.get("edge_refs", [])],
             score=raw.get("score"),
             feedback_applied=raw.get("feedback_applied", False),
+            materials=list(raw.get("materials", [])),
         )
 
 

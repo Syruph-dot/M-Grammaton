@@ -6,12 +6,18 @@ import random
 from typing import Any
 
 from mgraph import Node, NodePtr, insert_response
+from material_context import (
+    choose_answer_materials,
+    format_material_context,
+    material_refs_from_nodes,
+    material_trace_records,
+)
 from persona import Persona, random_persona
 from prompts import build_answer_prompt, build_question_prompt, build_score_prompt, format_question_text
 from quest_board import QuestBoard
 from questnode import AnswerNode, AnswerTrace, QuestNode
 from runtime.messages import AnswerScored, AnswerSubmitted, ClockTick, QuestPosted
-from operator_core import read_context, navigate
+from operator_core import read_context, read_path, navigate
 
 logger = logging.getLogger(__name__)
 
@@ -215,7 +221,9 @@ class AsyncOperator:
         return format_question_text(qdata)
 
     async def _answer(self, quest: QuestNode, graph, board) -> AnswerNode | None:
-        node_names, path_edges, context_text = self._read_for_quest(graph)
+        node_names, path_edges, context_text, material_records = (
+            self._read_materials_for_quest(graph)
+        )
 
         self._navigate_to(graph, quest)
 
@@ -233,6 +241,7 @@ class AsyncOperator:
             answerer_id=self.id,
             node_names=node_names,
             edge_refs=path_edges,
+            materials=material_records,
         )
         ans = board.submit_answer(quest, self.id, answer_text, graph, trace=trace)
         logger.info("[%s] 回答 %s", self.id, quest.name)
@@ -322,6 +331,21 @@ class AsyncOperator:
                 return [], [], ""
             self.current.bind(graph.random_node())
         return read_context(self.current.get(), node_limit)
+
+    def _read_materials_for_quest(self, graph, node_limit: int = 3):
+        if not self.current:
+            if not graph.V:
+                return [], [], "", []
+            self.current.bind(graph.random_node())
+        node_names, path_edges, visited = read_path(self.current.get(), node_limit)
+        refs = material_refs_from_nodes(visited)
+        chosen = choose_answer_materials(refs)
+        return (
+            node_names,
+            path_edges,
+            format_material_context(chosen),
+            material_trace_records(chosen),
+        )
 
     def _navigate_to(self, graph, target: Node, steps: int = 3):
         navigate(self.current, target, steps)
