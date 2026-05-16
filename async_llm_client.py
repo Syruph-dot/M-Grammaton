@@ -19,7 +19,12 @@ class AsyncLLMClient:
         self.monitor = monitor
         self.operator_id = operator_id
 
-    async def chat(self, messages: list[dict], max_retries=3) -> str:
+    async def chat(
+        self,
+        messages: list[dict],
+        max_retries=3,
+        telemetry_action: str = "chat",
+    ) -> str:
         last_error = None
         for attempt in range(max_retries):
             try:
@@ -34,7 +39,7 @@ class AsyncLLMClient:
                 resp.raise_for_status()
                 data = resp.json()
                 text = data["choices"][0]["message"]["content"] or ""
-                self._report_tokens(messages, text, data, action="chat")
+                self._report_tokens(messages, text, data, action=telemetry_action)
                 return text
             except Exception as e:
                 last_error = e

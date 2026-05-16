@@ -16,6 +16,7 @@ from tag_manager import TagManager
 
 from runtime.async_operator import AsyncOperator
 from runtime.decision import RandomDecider
+from runtime.material_summary import material_summary_loop
 from runtime.message_bus import MessageBus
 from runtime.messages import ClockTick
 from runtime.monitor import RuntimeMonitor
@@ -136,6 +137,8 @@ class OperatorRuntime:
 
         tasks = [op.run() for op in self.operators.values()]
         tasks.append(self._clock())
+        if self.llm_client is not None:
+            tasks.append(material_summary_loop(self))
         try:
             await asyncio.gather(*tasks)
         except asyncio.CancelledError:
