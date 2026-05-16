@@ -35,6 +35,7 @@ class OperatorRuntime:
         self.running = False
         self._running_ref = [False]
         self.round = 0
+        self.started_at = None
         self._stk_decay_counter = 0
         self.data_dir = data_dir
         self._save_interval = 10  # 每 N 个 tick 自动存盘
@@ -125,6 +126,8 @@ class OperatorRuntime:
     async def start(self):
         self.running = True
         self._running_ref[0] = True
+        import time
+        self.started_at = time.time()
         logger.info(
             "[Runtime] 启动 — %d Operators: %s",
             len(self.operators),
@@ -262,8 +265,14 @@ async def main():
         from runtime.server import run_server
 
         logger.info("[Runtime] 启动监控面板 → http://127.0.0.1:%d", args.port)
-        server_task = asyncio.create_task(run_server(monitor, port=args.port,
-                                                          tag_manager_instance=runtime.tag_manager))
+        server_task = asyncio.create_task(
+            run_server(
+                monitor,
+                port=args.port,
+                tag_manager_instance=runtime.tag_manager,
+                runtime_instance=runtime,
+            )
+        )
 
     timeout_task = None
     if args.timeout > 0:

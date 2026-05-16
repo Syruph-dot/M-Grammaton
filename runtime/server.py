@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
+from questnode import AnswerNode, QuestNode
 from runtime.monitor import RuntimeMonitor
 from tag_manager import TagManager
 
@@ -18,6 +20,7 @@ from tag_manager import TagManager
 app = FastAPI(title="M-Grammaton Runtime Monitor")
 monitor: RuntimeMonitor | None = None
 tag_manager: TagManager | None = None
+runtime_ref = None
 
 
 # ── Pydantic models ────────────────────────────────
@@ -65,6 +68,11 @@ async def get_snapshot():
     return {"operators": ops, "count": len(ops)}
 
 
+@app.get("/api/dashboard/snapshot")
+async def dashboard_snapshot():
+    return _build_dashboard_snapshot(runtime_ref, monitor)
+
+
 @app.get("/stream")
 async def stream_events(request: Request):
     if monitor is None:
@@ -97,6 +105,187 @@ async def stream_events(request: Request):
                 monitor.unsubscribe(queue)
 
     return EventSourceResponse(event_generator())
+
+
+@app.get("/api/dashboard/stream")
+async def dashboard_stream(request: Request):
+    if monitor is None:
+        return {"error": "monitor not ready"}
+
+    queue = monitor.subscribe_events()
+
+    async def event_generator():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=2.0)
+                    yield {
+                        "event": "dashboard",
+                        "data": json.dumps(event, ensure_ascii=False),
+                    }
+                except asyncio.TimeoutError:
+                    yield {"event": "ping", "data": ""}
+        finally:
+            if monitor:
+                monitor.unsubscribe_events(queue)
+
+    return EventSourceResponse(event_generator())
+
+
+def _build_dashboard_snapshot(runtime_obj=None, monitor_obj=None, now: float | None = None) -> dict:
+    now = time.time() if now is None else float(now)
+    empty = {
+        "ready": False,
+        "runtime": {
+            "running": False,
+            "round": 0,
+            "started_at": None,
+            "uptime_seconds": 0.0,
+        },
+        "stats": {
+            "operators": 0,
+            "nodes": 0,
+            "edges": 0,
+            "active_quests": 0,
+            "completed_quests": 0,
+            "stk_entries": 0,
+        },
+        "tokens": _token_snapshot(monitor_obj, now),
+        "operators": _operator_snapshots(monitor_obj),
+        "graph": {"version": 0, "nodes": [], "links": []},
+        "quests": {"active": [], "completed": []},
+    }
+    if runtime_obj is None:
+        return empty
+
+    graph = getattr(runtime_obj, "graph", None)
+    board = getattr(runtime_obj, "board", None)
+    operators = getattr(runtime_obj, "operators", {}) or {}
+    nodes = list(getattr(graph, "V", []) or [])
+    edges = list(getattr(graph, "E", []) or [])
+    active_quests = list(getattr(board, "active", []) or [])
+    completed_quests = list(getattr(board, "completed", []) or [])
+    started_at = getattr(runtime_obj, "started_at", None)
+    uptime = max(0.0, now - float(started_at)) if started_at is not None else 0.0
+    operator_rows = _operator_snapshots(monitor_obj)
+    active_by_node = _active_operators_by_node(operator_rows)
+
+    return {
+        "ready": True,
+        "runtime": {
+            "running": bool(getattr(runtime_obj, "running", False)),
+            "round": int(getattr(runtime_obj, "round", 0) or 0),
+            "started_at": started_at,
+            "uptime_seconds": uptime,
+        },
+        "stats": {
+            "operators": len(operators) if operators else len(operator_rows),
+            "nodes": len(nodes),
+            "edges": len(edges),
+            "active_quests": len(active_quests),
+            "completed_quests": len(completed_quests),
+            "stk_entries": sum(len(getattr(node, "stk", []) or []) for node in nodes),
+        },
+        "tokens": _token_snapshot(monitor_obj, now),
+        "operators": operator_rows,
+        "graph": {
+            "version": _graph_version(nodes, edges, active_by_node),
+            "nodes": [_dashboard_node(node, active_by_node) for node in sorted(nodes, key=lambda item: item.name)],
+            "links": [_dashboard_link(edge) for edge in sorted(edges, key=lambda item: (item.source.name, item.target.name))],
+        },
+        "quests": {
+            "active": [_quest_summary(item) for item in active_quests],
+            "completed": [_quest_summary(item) for item in completed_quests],
+        },
+    }
+
+
+def _operator_snapshots(monitor_obj) -> list[dict]:
+    if monitor_obj is None:
+        return []
+    return [
+        {
+            "id": snap.operator_id,
+            "node": snap.current_node,
+            "mbti": snap.mbti,
+            "quests": snap.active_quests,
+            "action": snap.last_action,
+            "detail": snap.last_detail,
+            "timestamp": snap.timestamp,
+        }
+        for snap in sorted(monitor_obj.snapshot().values(), key=lambda item: item.operator_id)
+    ]
+
+
+def _token_snapshot(monitor_obj, now: float) -> dict:
+    if monitor_obj is None or not hasattr(monitor_obj, "token_snapshot"):
+        return {
+            "total": 0,
+            "last_minute": 0,
+            "requests": 0,
+            "reported": 0,
+            "estimated": 0,
+            "series": [],
+        }
+    return monitor_obj.token_snapshot(now=now)
+
+
+def _active_operators_by_node(operator_rows: list[dict]) -> dict[str, list[str]]:
+    active: dict[str, list[str]] = {}
+    for row in operator_rows:
+        node = row.get("node")
+        if node:
+            active.setdefault(node, []).append(row["id"])
+    return active
+
+
+def _dashboard_node(node, active_by_node: dict[str, list[str]]) -> dict:
+    return {
+        "id": node.name,
+        "label": getattr(node, "title", node.name) or node.name,
+        "kind": _node_kind(node),
+        "tags": sorted(getattr(node, "tags", []) or []),
+        "degree": len(getattr(node, "inlinks", []) or []) + len(getattr(node, "outlinks", []) or []),
+        "activeOperators": sorted(active_by_node.get(node.name, [])),
+    }
+
+
+def _dashboard_link(edge) -> dict:
+    return {
+        "id": f"{edge.source.name}->{edge.target.name}",
+        "source": edge.source.name,
+        "target": edge.target.name,
+        "weight": edge.value,
+    }
+
+
+def _node_kind(node) -> str:
+    if isinstance(node, QuestNode):
+        return "quest"
+    if isinstance(node, AnswerNode):
+        return "answer"
+    return getattr(node, "kind", "document")
+
+
+def _quest_summary(quest) -> dict:
+    answers = quest.get_answers() if hasattr(quest, "get_answers") else []
+    return {
+        "id": quest.name,
+        "quester": getattr(quest, "quester_id", ""),
+        "content": getattr(quest, "content", ""),
+        "answers": len(answers),
+        "depth": getattr(quest, "depth", 0),
+    }
+
+
+def _graph_version(nodes, edges, active_by_node: dict[str, list[str]]) -> int:
+    active = tuple(
+        (node, tuple(operators))
+        for node, operators in sorted(active_by_node.items())
+    )
+    return hash((len(nodes), len(edges), active))
 
 
 # ── Tag Management API ─────────────────────────────
@@ -693,13 +882,15 @@ async def run_server(
     host: str = "127.0.0.1",
     port: int = 8765,
     tag_manager_instance: TagManager | None = None,
+    runtime_instance=None,
 ):
     """在已有事件循环中启动 uvicorn 服务器。"""
     import uvicorn
 
-    global monitor, tag_manager
+    global monitor, tag_manager, runtime_ref
     monitor = monitor_instance
     tag_manager = tag_manager_instance
+    runtime_ref = runtime_instance
 
     config = uvicorn.Config(
         app,
