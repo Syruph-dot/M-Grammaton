@@ -3,12 +3,17 @@ name: dopp63
 kind: document
 title: 材料B
 tags: []
+t_read: 0.0
+t_write: 0.0
+t_lp: 0.0
 parent: null
 metadata:
   author: ZUN
   hash: 0
   abstract: 0
-stk: []
+stk:
+- - false
+  - dopp62
 ---
 
 They say that even the servants to the Emperor Qin Shi Huang couldn't find the elixir of immortality, yet...

@@ -1,0 +1,30 @@
+{
+  "operators": {
+    "Alice": {
+      "current_node": "quest_1",
+      "submitted_quests": [
+        "quest_0",
+        "quest_3",
+        "quest_5"
+      ],
+      "persona_mbti": "ISFJ"
+    },
+    "Bob": {
+      "current_node": "quest_0",
+      "submitted_quests": [
+        "quest_1",
+        "quest_4",
+        "quest_6"
+      ],
+      "persona_mbti": "ESFJ"
+    },
+    "Carol": {
+      "current_node": "quest_7",
+      "submitted_quests": [
+        "quest_2",
+        "quest_7"
+      ],
+      "persona_mbti": "ESTP"
+    }
+  }
+}

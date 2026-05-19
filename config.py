@@ -11,6 +11,7 @@ class Config:
     api_key: str = ""
     base_url: str = "https://api.deepseek.com"
     model: str = "deepseek-v4-flash"
+    vendor: str = "deepseek"  # "deepseek" | "aliyun"
     temperature: float = 0.7
     request_pool_window_seconds: float = 15.0
     request_pool_token_budget: int = 250000
@@ -18,7 +19,10 @@ class Config:
 
     def __post_init__(self):
         if not self.api_key:
-            self.api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+            if self.vendor == "aliyun":
+                self.api_key = os.environ.get("ALIYUN_API_KEY", "")
+            else:
+                self.api_key = os.environ.get("DEEPSEEK_API_KEY", "")
         path = Path(__file__).parent / "config.json"
         if path.exists():
             with open(path, encoding="utf-8") as f:

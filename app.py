@@ -45,6 +45,7 @@ for font_name in ["Microsoft YaHei", "SimHei", "WenQuanYi Micro Hei", "Noto Sans
         continue
 plt.rcParams["axes.unicode_minus"] = False
 
+from aliyun_client import AliyunLLMClient
 from config import Config
 from llm_client import LLMClient
 from mgraph import MGraph, Node
@@ -385,16 +386,26 @@ def _bootstrap_graph(data_dir):
 
 
 def _create_llm_client(api_key, model_name):
-    """用控制台输入或环境变量创建可用的 LLMClient。"""
-    if not api_key.strip():
-        api_key = os.environ.get("DEEPSEEK_API_KEY", "")
-    if not api_key:
-        raise gr.Error("请提供 API Key，或设置环境变量 DEEPSEEK_API_KEY")
+    """用控制台输入或环境变量创建可用的 LLM 客户端。"""
+    is_aliyun = model_name == "aliyun-mix"
 
-    config = Config(api_key=api_key.strip(), model=model_name)
+    if not api_key.strip():
+        env_var = "ALIYUN_API_KEY" if is_aliyun else "DEEPSEEK_API_KEY"
+        api_key = os.environ.get(env_var, "")
+    if not api_key:
+        env_var = "ALIYUN_API_KEY" if is_aliyun else "DEEPSEEK_API_KEY"
+        raise gr.Error(f"请提供 API Key，或设置环境变量 {env_var}")
+
+    config = Config(
+        api_key=api_key.strip(),
+        model=model_name,
+        vendor="aliyun" if is_aliyun else "deepseek",
+    )
     if not config.validate():
         raise gr.Error("API Key 无效")
 
+    if is_aliyun:
+        return config, AliyunLLMClient(api_key=api_key.strip())
     return config, LLMClient(config)
 
 
@@ -461,7 +472,10 @@ def init_system(data_dir, api_key, model_name, state):
 
     # ── LLM 客户端 ──
     config, llm_client = _create_llm_client(api_key, model_name)
-    log(state, f"[LLM] 已连接 — 模型: {model_name}")
+    model_label = model_name
+    if model_name == "aliyun-mix" and hasattr(llm_client, "model_list"):
+        model_label = f"aliyun-mix ({len(llm_client.model_list)} 个模型)"
+    log(state, f"[LLM] 已连接 — {model_label}")
 
     # 注入 LLM 客户端到所有 operator
     for op in operators.values():
@@ -679,7 +693,7 @@ with gr.Blocks(title="M-Grammaton", css=CSS, theme=gr.themes.Soft()) as demo:
                     placeholder="留空则使用环境变量 DEEPSEEK_API_KEY",
                 )
                 model_name = gr.Dropdown(
-                    ["deepseek-v4-flash", "deepseek-chat", "gpt-4o"],
+                    ["deepseek-v4-flash", "deepseek-chat", "gpt-4o", "aliyun-mix"],
                     value="deepseek-v4-flash",
                     label="模型",
                 )

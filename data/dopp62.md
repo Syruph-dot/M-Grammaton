@@ -3,6 +3,9 @@ name: dopp62
 kind: document
 title: 材料A
 tags: []
+t_read: 0.0
+t_write: 0.0
+t_lp: 0.0
 parent: null
 metadata:
   author: ZUN
