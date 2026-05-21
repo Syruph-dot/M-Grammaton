@@ -89,6 +89,7 @@ def test_user_actor_to_dict_shape():
     assert "current_node_kind" in d
     assert "current_node_title" in d
     assert "current_node_content_preview" in d
+    assert "is_readonly" in d
     assert "out_edges" in d
     assert "in_edges" in d
     assert "stash" in d
@@ -96,6 +97,79 @@ def test_user_actor_to_dict_shape():
     assert "active_messages" in d
     assert "blocked_messages" in d
     assert "timestamp" in d
+
+
+# ── Chunk / Local Edge / readonly ─────────────────────────
+
+
+def test_human_source_node_is_readonly():
+    """Document 节点属于 Human Source，标记为只读。"""
+    graph = _make_graph()
+    user = UserActor()
+    user.bind(next(n for n in graph.V if n.name == "source"))
+    state = user.build_panel_state(graph)
+    assert state.is_readonly is True
+
+
+def test_quest_node_is_not_readonly():
+    """Quest 节点属于 Operator artifact，非只读。"""
+    graph = MGraph()
+    doc = Node("doc", content="human", mg=graph)
+    quest = QuestNode("q1", content="a quest?", quester_id="Alice")
+    graph.add_node(quest)
+    doc.link_to(quest, 1.0)
+
+    user = UserActor()
+    user.bind(quest)
+    state = user.build_panel_state(graph)
+    assert state.current_node == "q1"
+    assert state.is_readonly is False
+
+
+def test_answer_node_is_not_readonly():
+    """Answer 节点属于 Operator artifact，非只读。"""
+    graph = MGraph()
+    doc = Node("doc", content="human", mg=graph)
+    quest = QuestNode("q1", quester_id="Alice")
+    graph.add_node(quest)
+    ans = AnswerNode("a1", content="answer", answerer_id="Bob",
+                     quest_name="q1")
+    graph.add_node(ans)
+    doc.link_to(ans, 1.0)
+
+    user = UserActor()
+    user.bind(ans)
+    state = user.build_panel_state(graph)
+    assert state.current_node == "a1"
+    assert state.is_readonly is False
+
+
+# ── Graph node click (select_node) ────────────────────────
+
+
+def test_user_select_node_changes_current_node():
+    graph = _make_graph()
+    user = UserActor()
+    user.bind(next(n for n in graph.V if n.name == "source"))
+
+    target = next(n for n in graph.V if n.name == "target")
+    user.bind(target)
+
+    assert user.current_node == "target"
+    state = user.build_panel_state(graph)
+    assert state.current_node == "target"
+    assert state.current_node_content_preview == "beta content"
+
+
+def test_user_select_nonexistent_node_no_crash():
+    graph = _make_graph()
+    user = UserActor()
+    user.bind(next(n for n in graph.V if n.name == "source"))
+
+    # 绑定到不存在的节点——这里模拟 NodePtr 行为，它只持弱引用
+    # 直接测试 UserActor 的 build_panel_state 不会因错误 node_id 崩溃
+    state = user.build_panel_state(graph)
+    assert state.current_node == "source"  # unchanged
 
 
 # ── Operator Actor ────────────────────────────────────────

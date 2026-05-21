@@ -52,6 +52,7 @@ class ActorPanelState:
     current_node_kind: str = ""
     current_node_title: str = ""
     current_node_content_preview: str = ""
+    is_readonly: bool = False  # Human Source 节点只读
     out_edges: list[dict] = field(default_factory=list)
     in_edges: list[dict] = field(default_factory=list)
     stash: list[dict] = field(default_factory=list)
@@ -68,6 +69,7 @@ class ActorPanelState:
             "current_node_kind": self.current_node_kind,
             "current_node_title": self.current_node_title,
             "current_node_content_preview": self.current_node_content_preview,
+            "is_readonly": self.is_readonly,
             "out_edges": list(self.out_edges),
             "in_edges": list(self.in_edges),
             "stash": list(self.stash),
@@ -133,6 +135,7 @@ class UserActor:
             state.current_node = node.name
             state.current_node_kind = _node_kind(node)
             state.current_node_title = getattr(node, "title", node.name) or node.name
+            state.is_readonly = _is_human_source(node)
             content = getattr(node, "content", "")
             state.current_node_content_preview = content[:200] if content else ""
             state.out_edges = [
@@ -209,6 +212,7 @@ def build_operator_panel_state(
                 state.current_node_title = (
                     getattr(node, "title", node.name) or node.name
                 )
+                state.is_readonly = _is_human_source(node)
                 content = getattr(node, "content", "")
                 state.current_node_content_preview = content[:200] if content else ""
                 state.out_edges = [
@@ -231,3 +235,10 @@ def _node_kind(node) -> str:
     if isinstance(node, AnswerNode):
         return "answer"
     return getattr(node, "kind", "document")
+
+
+def _is_human_source(node) -> bool:
+    """Human Source 节点（只读）—— 非 operator artifact 的节点。"""
+    if isinstance(node, (QuestNode, AnswerNode)):
+        return False
+    return getattr(node, "kind", "document") == "document"

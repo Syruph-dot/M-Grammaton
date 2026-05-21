@@ -197,6 +197,22 @@ async def actor_panel(actor_id: str):
     return {"ready": False, "error": f"actor '{actor_id}' not found"}
 
 
+@app.post("/api/actors/user/select_node")
+async def user_select_node(node_id: str):
+    """切换 User Actor 的 current node（点击全局图节点时调用）。"""
+    if user_actor_ref is None:
+        return {"error": "user actor not ready"}
+    graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+    if graph is None:
+        return {"error": "graph not ready"}
+    for node in graph.V:
+        if node.name == node_id:
+            user_actor_ref.bind(node)
+            state = user_actor_ref.build_panel_state(graph)
+            return {"ok": True, "panel": state.to_dict()}
+    return {"ok": False, "error": f"node '{node_id}' not found"}
+
+
 def _build_dashboard_snapshot(runtime_obj=None, monitor_obj=None, now: float | None = None) -> dict:
     now = time.time() if now is None else float(now)
     empty = {
