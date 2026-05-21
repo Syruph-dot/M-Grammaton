@@ -203,7 +203,13 @@ def save_node(node: Node, data_dir: str = "data") -> None:
 # ── 序列化辅助 ─────────────────────────────────────
 
 def _is_operator_node(node: Node) -> bool:
-    return isinstance(node, (QuestNode, AnswerNode))
+    """Operator 产物节点 —— 不入 human/ 目录。"""
+    if isinstance(node, (QuestNode, AnswerNode)):
+        return True
+    # Artifact 节点（User 或 Operator 创建的 note/reply 等）
+    if getattr(node, "kind", "") in {"note", "reply", "artifact"}:
+        return True
+    return False
 
 
 def _node_frontmatter(node: Node) -> dict:
