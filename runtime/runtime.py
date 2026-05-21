@@ -14,6 +14,7 @@ from quest_board import QuestBoard
 from questnode import AnswerNode, QuestNode
 from tag_manager import TagManager
 
+from runtime.actor_panel import UserActor
 from runtime.async_operator import AsyncOperator
 from runtime.decision import RandomDecider
 from runtime.material_summary import material_summary_loop
@@ -61,11 +62,17 @@ class OperatorRuntime:
 
         self.tag_manager.rebuild_from_graph(self.graph)
 
-        self.operators: dict[str, AsyncOperator] = {}
+        self.user_actor = UserActor()
         content_nodes = [
             n for n in self.graph.V
             if not isinstance(n, (QuestNode, AnswerNode))
         ]
+
+        # User Actor 默认绑定到第一个内容节点
+        if content_nodes:
+            self.user_actor.bind(content_nodes[0])
+
+        self.operators: dict[str, AsyncOperator] = {}
         for name in operator_names:
             op = AsyncOperator(
                 operator_id=name,

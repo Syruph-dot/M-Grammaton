@@ -20,6 +20,10 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from questnode import AnswerNode, QuestNode
+from runtime.actor_panel import (
+    UserActor,
+    build_operator_panel_state,
+)
 from runtime.monitor import RuntimeMonitor
 from tag_manager import TagManager
 
@@ -29,6 +33,7 @@ app = FastAPI(title="M-Grammaton Runtime Monitor")
 monitor: RuntimeMonitor | None = None
 tag_manager: TagManager | None = None
 runtime_ref = None
+user_actor_ref: UserActor | None = None
 
 
 # ── Pydantic models ────────────────────────────────
@@ -142,6 +147,56 @@ async def dashboard_stream(request: Request):
     return EventSourceResponse(event_generator())
 
 
+# ── Actor Panel API ───────────────────────────────────
+
+
+@app.get("/api/actors")
+async def list_actors():
+    """返回所有 Actor（含 User 和 Operator）的摘要列表。"""
+    result: list[dict] = []
+    if user_actor_ref is not None:
+        result.append(user_actor_ref.to_actor_summary())
+    if monitor is not None:
+        for snap in sorted(monitor.snapshot().values(), key=lambda s: s.operator_id):
+            result.append({
+                "id": snap.operator_id,
+                "kind": "operator",
+                "current_node": snap.current_node,
+            })
+    return {"actors": result, "count": len(result)}
+
+
+@app.get("/api/actors/{actor_id}/panel")
+async def actor_panel(actor_id: str):
+    """返回指定 Actor 的面板快照。"""
+    if monitor is None:
+        return {"error": "monitor not ready", "ready": False}
+
+    # User Actor
+    if user_actor_ref is not None and actor_id == user_actor_ref.id:
+        graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+        state = user_actor_ref.build_panel_state(graph)
+        return {"ready": True, "panel": state.to_dict()}
+
+    # Operator Actor
+    ops = monitor.snapshot()
+    if actor_id in ops:
+        snap = ops[actor_id]
+        graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+        state = build_operator_panel_state(
+            operator_id=snap.operator_id,
+            current_node_name=snap.current_node,
+            mbti=snap.mbti,
+            active_quests=snap.active_quests,
+            last_action=snap.last_action,
+            graph=graph,
+            timestamp=snap.timestamp,
+        )
+        return {"ready": True, "panel": state.to_dict()}
+
+    return {"ready": False, "error": f"actor '{actor_id}' not found"}
+
+
 def _build_dashboard_snapshot(runtime_obj=None, monitor_obj=None, now: float | None = None) -> dict:
     now = time.time() if now is None else float(now)
     empty = {
@@ -164,6 +219,7 @@ def _build_dashboard_snapshot(runtime_obj=None, monitor_obj=None, now: float | N
         "operators": _operator_snapshots(monitor_obj),
         "graph": {"version": 0, "nodes": [], "links": []},
         "quests": {"active": [], "completed": []},
+        "actors": [],
     }
     if runtime_obj is None:
         return empty
@@ -207,7 +263,22 @@ def _build_dashboard_snapshot(runtime_obj=None, monitor_obj=None, now: float | N
             "active": [_quest_summary(item) for item in active_quests],
             "completed": [_quest_summary(item) for item in completed_quests],
         },
+        "actors": _actor_list(user_actor_ref, monitor_obj),
     }
+
+
+def _actor_list(user_actor, monitor_obj) -> list[dict]:
+    actors: list[dict] = []
+    if user_actor is not None:
+        actors.append(user_actor.to_actor_summary())
+    if monitor_obj is not None:
+        for snap in sorted(monitor_obj.snapshot().values(), key=lambda s: s.operator_id):
+            actors.append({
+                "id": snap.operator_id,
+                "kind": "operator",
+                "current_node": snap.current_node,
+            })
+    return actors
 
 
 def _operator_snapshots(monitor_obj) -> list[dict]:
@@ -902,10 +973,12 @@ async def run_server(
     """在已有事件循环中启动 uvicorn 服务器。"""
     import uvicorn
 
-    global monitor, tag_manager, runtime_ref
+    global monitor, tag_manager, runtime_ref, user_actor_ref
     monitor = monitor_instance
     tag_manager = tag_manager_instance
     runtime_ref = runtime_instance
+    if runtime_instance is not None:
+        user_actor_ref = getattr(runtime_instance, "user_actor", None)
 
     config = uvicorn.Config(
         app,
