@@ -1,0 +1,3 @@
+# Web search imports snippets first and writes a search report
+
+Phase 2 treats web search as exploratory evidence gathering rather than webpage archiving. Search results enter the graph as snippet-only `web_page` artifacts by default, and search sessions that import at least one result create a `search_report` artifact; empty or failed searches emit monitor events but do not add report nodes. The report body is default Chinese prose in one coherent essay-style main text that summarizes and synthesizes the searched materials, then reflects on what those materials evoke; it is not JSON or a bullet list. Metadata keeps the query, trigger, imported result ids, and status. Full page content is fetched only by a later explicit bounded action.
