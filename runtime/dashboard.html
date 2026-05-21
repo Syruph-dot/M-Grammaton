@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -19,26 +19,95 @@
   .kpi{background:#171d23;border:1px solid #2d3742;border-radius:8px;padding:10px 12px;min-height:68px}
   .kpi-label{font-size:11px;color:#91a1b2;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
   .kpi-value{font-size:22px;font-weight:700;margin-top:6px;color:#f8fafc;font-variant-numeric:tabular-nums}
-  .dashboard-grid{display:grid;grid-template-columns:minmax(520px,1fr) 390px;gap:12px;min-height:610px}
+  .dashboard-grid{display:grid;grid-template-columns:minmax(520px,1fr) 480px;gap:12px;min-height:610px}
   .graph-panel{position:relative;background:#121820;border:1px solid #2d3742;border-radius:8px;overflow:hidden;min-height:610px}
   #graph{display:block;width:100%;height:100%;min-height:610px}
   #graph-empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#7c8794;font-size:14px;pointer-events:none}
-  .side-panel{display:grid;grid-template-rows:1fr 220px;gap:12px;min-height:610px}
+  .side-panel{display:flex;flex-direction:column;gap:12px;min-height:610px}
   .panel{background:#171d23;border:1px solid #2d3742;border-radius:8px;overflow:hidden}
   .panel-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #2d3742}
   .panel-title{font-size:13px;font-weight:700;color:#d7dee7}
   .panel-meta{font-size:11px;color:#7c8794}
-  #operators{height:100%;overflow:auto}
-  .op-row{display:grid;grid-template-columns:70px 58px 1fr 72px;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid #242d36;font-size:12px}
+
+  /* ── Actor Selector ── */
+  .actor-selector{display:flex;gap:6px;flex-wrap:wrap;padding:10px 12px}
+  .actor-btn{background:#1a2632;border:1px solid #2d3742;border-radius:6px;padding:6px 12px;font-size:12px;color:#b8c2cc;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .actor-btn:hover{background:#25313d;border-color:#3a4a5a}
+  .actor-btn.active{background:#1d3a5a;border-color:#5da9e9;color:#e5e7eb}
+  .actor-btn .badge{display:inline-block;background:#25313d;border-radius:999px;padding:0 6px;font-size:10px;margin-left:4px;color:#7c8794}
+  .actor-btn.active .badge{background:#2a4a6a;color:#a7d7ff}
+
+  /* ── Panel Sections ── */
+  .panel-body{overflow-y:auto;overflow-x:hidden;max-height:520px}
+  .panel-body.compact{max-height:240px}
+  .section{padding:0}
+  .section-title{font-size:11px;color:#7c8794;padding:8px 12px 4px;text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+  .chunk-card{background:#121820;margin:4px 12px 8px;border-radius:6px;padding:10px;border:1px solid #242d36}
+  .chunk-title{font-size:13px;font-weight:600;color:#f8fafc}
+  .chunk-kind{font-size:10px;color:#7c8794;margin-top:2px}
+  .chunk-content{font-size:12px;color:#b8c2cc;margin-top:6px;line-height:1.5;max-height:80px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+  .readonly-tag{display:inline-block;background:#1d3a3a;color:#79d8b0;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:6px}
+
+  /* ── Edge Lists ── */
+  .edge-list{margin:0 12px 8px}
+  .edge-row{display:flex;align-items:center;gap:6px;padding:4px 6px;font-size:12px;border-radius:4px;cursor:default}
+  .edge-row.clickable{cursor:pointer}
+  .edge-row.clickable:hover{background:#1a2632}
+  .edge-row.selected{background:#1d3a5a;border:1px solid #3a6a8a}
+  .edge-node{color:#66c2ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .edge-kind{font-size:10px;color:#7c8794;min-width:40px}
+  .edge-weight{font-size:11px;color:#91a1b2;min-width:32px;text-align:right}
+  .edge-dir{color:#5a6a7a;font-size:10px;min-width:16px;text-align:center}
+
+  /* ── Stash ── */
+  .stash-list{margin:0 12px 8px}
+  .stash-item{display:flex;align-items:center;gap:6px;padding:4px 6px;font-size:12px;border-radius:4px}
+  .stash-item:hover{background:#1a2632}
+  .stash-node{color:#c9d1d9;flex:1}
+  .stash-ttl{font-size:10px;color:#7c8794;min-width:50px;text-align:right}
+  .stash-del{color:#da3633;cursor:pointer;font-weight:700;font-size:14px;padding:0 4px}
+  .stash-del:hover{color:#f85149}
+
+  /* ── Message Queue ── */
+  .msg-list{margin:0 12px 8px}
+  .msg-row{display:flex;align-items:center;gap:6px;padding:4px 6px;font-size:12px;border-radius:4px;cursor:pointer}
+  .msg-row:hover{background:#1a2632}
+  .msg-row.selected{background:#1d3a5a}
+  .msg-id{color:#7c8794;font-size:10px;min-width:52px;overflow:hidden;text-overflow:ellipsis}
+  .msg-summary{color:#b8c2cc;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .msg-status{font-size:10px;min-width:40px;text-align:right}
+  .msg-status.active{color:#79d8b0}
+  .msg-status.done{color:#7c8794}
+  .msg-status.blocked{color:#ff9b8f}
+  .msg-status.deleted{color:#5a6a7a}
+  .msg-actions{display:flex;gap:4px;padding:4px 12px 8px}
+  .msg-btn{background:#1a2632;border:1px solid #2d3742;border-radius:4px;padding:3px 8px;font-size:11px;color:#b8c2cc;cursor:pointer;font-family:inherit}
+  .msg-btn:hover{background:#25313d}
+
+  /* ── Note/Reply Controls ── */
+  .note-area{padding:8px 12px;border-top:1px solid #242d36}
+  .note-input{width:100%;background:#0d1117;border:1px solid #2d3742;border-radius:4px;padding:6px 8px;color:#e5e7eb;font-size:12px;font-family:inherit;resize:vertical;min-height:32px}
+  .note-input:focus{border-color:#5da9e9;outline:none}
+  .note-bar{display:flex;gap:6px;margin-top:6px;justify-content:flex-end}
+  .note-btn{background:#1a5a3a;border:none;border-radius:4px;padding:4px 12px;font-size:12px;color:#e5e7eb;cursor:pointer;font-family:inherit}
+  .note-btn:hover{background:#1d6a4a}
+  .note-btn:disabled{opacity:.4;cursor:default}
+
+  /* ── Operator list (compact) ── */
+  #operators{max-height:150px;overflow:auto}
+  .op-row{display:grid;grid-template-columns:70px 58px 1fr 72px;gap:8px;align-items:center;padding:6px 12px;border-bottom:1px solid #242d36;font-size:12px;cursor:pointer}
   .op-row:last-child{border-bottom:0}
-  .op-id{font-weight:700;color:#f8fafc;overflow:hidden;text-overflow:ellipsis}
+  .op-row:hover{background:#1a2632}
+  .op-row.active{background:#1d3a5a}
+  .op-id{font-weight:600;color:#f8fafc;overflow:hidden;text-overflow:ellipsis}
   .badge{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:#25313d;color:#a7d7ff;min-width:44px;padding:2px 8px;font-size:11px}
   .op-node{color:#b8c2cc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .op-action{font-variant-numeric:tabular-nums;text-align:right;color:#79d8b0}
-  #token-chart{height:170px;padding:8px 10px 12px}
+
+  #token-chart{height:150px;padding:8px 10px 12px}
   #token-chart svg{width:100%;height:100%}
-  .bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;min-height:220px}
-  #events,#quests{max-height:260px;overflow:auto}
+  .bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;min-height:200px}
+  #events,#quests{max-height:240px;overflow:auto}
   .event-row,.quest-row{display:grid;grid-template-columns:92px 1fr;gap:10px;padding:8px 12px;border-bottom:1px solid #242d36;font-size:12px}
   .event-type,.quest-id{color:#66c2ff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .event-detail,.quest-detail{color:#b8c2cc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -48,6 +117,7 @@
   .label{fill:#cbd5df;font-size:11px;paint-order:stroke;stroke:#121820;stroke-width:3px;stroke-linejoin:round;pointer-events:none}
   .tooltip{position:absolute;z-index:10;background:#0b1015;border:1px solid #344250;border-radius:6px;padding:8px 10px;color:#e5e7eb;font-size:12px;pointer-events:none;opacity:0;max-width:280px;box-shadow:0 12px 24px rgba(0,0,0,.32)}
   .error{color:#ff9b8f;padding:18px}
+  .kbd-hint{font-size:10px;color:#5a6a7a;margin-top:4px;text-align:right}
   @media (max-width:1100px){
     body{padding:10px}.kpis{grid-template-columns:repeat(2,minmax(130px,1fr))}
     .dashboard-grid,.bottom-grid{grid-template-columns:1fr}.side-panel{grid-template-rows:auto auto}
@@ -74,10 +144,15 @@
       <div class="tooltip" id="tooltip"></div>
     </section>
     <aside class="side-panel">
+      <!-- Actor Selector -->
       <section class="panel">
-        <div class="panel-header"><div class="panel-title">Operators</div><div class="panel-meta" id="operator-count">0</div></div>
-        <div id="operators"></div>
+        <div class="panel-header"><div class="panel-title">Actor Panel</div><div class="panel-meta" id="actor-panel-meta">select actor</div></div>
+        <div class="actor-selector" id="actor-selector"></div>
+        <div class="panel-body" id="actor-panel-body">
+          <div style="padding:18px;text-align:center;color:#7c8794;font-size:13px">Select an actor above</div>
+        </div>
       </section>
+      <!-- Token Chart -->
       <section class="panel">
         <div class="panel-header"><div class="panel-title">Token Throughput</div><div class="panel-meta" id="token-meta">0 t/s</div></div>
         <div id="token-chart"></div>
@@ -98,7 +173,10 @@
 </div>
 
 <script>
-const state = {
+// ════════════════════════════════════════════════════════════════
+// State
+// ════════════════════════════════════════════════════════════════
+const appState = {
   snapshot: null,
   events: [],
   nodes: [],
@@ -106,7 +184,14 @@ const state = {
   nodeById: new Map(),
   linkById: new Map(),
   graphVersion: null,
-  source: null
+  source: null,
+  selectedActor: null,    // actor id
+  actors: [],             // list from snapshot
+  panel: null,            // current panel state
+  operators: [],
+  quests: [],
+  noteText: '',
+  replyText: '',
 };
 
 const svg = d3.select('#graph');
@@ -117,8 +202,8 @@ const linkLayer = root.append('g');
 const nodeLayer = root.append('g');
 const labelLayer = root.append('g');
 
-const simulation = d3.forceSimulation(state.nodes)
-  .force('link', d3.forceLink(state.links).id(d => d.id).distance(d => 90 + 80 * (1 - Math.min(1, d.weight || 0))))
+const simulation = d3.forceSimulation(appState.nodes)
+  .force('link', d3.forceLink(appState.links).id(d => d.id).distance(d => 90 + 80 * (1 - Math.min(1, d.weight || 0))))
   .force('charge', d3.forceManyBody().strength(d => d.kind === 'document' ? -190 : -150))
   .force('collide', d3.forceCollide().radius(d => 18 + Math.min(14, (d.degree || 0) * 2)).iterations(2))
   .force('x', d3.forceX(d => kindAnchor(d).x).strength(0.055))
@@ -150,13 +235,11 @@ simulation.on('tick', () => {
   });
 });
 
-function esc(value) {
-  return String(value ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
-}
-
-function fmt(value) {
-  return new Intl.NumberFormat('en-US').format(Math.round(Number(value) || 0));
-}
+// ════════════════════════════════════════════════════════════════
+// Utilities
+// ════════════════════════════════════════════════════════════════
+function esc(v) { return String(v ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+function fmt(v) { return new Intl.NumberFormat('en-US').format(Math.round(Number(v) || 0)); }
 
 function panelSize() {
   const box = graphPanel.getBoundingClientRect();
@@ -177,8 +260,11 @@ function resizeGraph() {
   simulation.alpha(0.18).restart();
 }
 
+// ════════════════════════════════════════════════════════════════
+// Graph rendering (unchanged from original)
+// ════════════════════════════════════════════════════════════════
 function mergeGraph(graph) {
-  const oldNodes = state.nodeById;
+  const oldNodes = appState.nodeById;
   const newNodes = graph.nodes.map(item => {
     const old = oldNodes.get(item.id);
     return Object.assign(old || {}, item);
@@ -186,17 +272,17 @@ function mergeGraph(graph) {
   const newNodeById = new Map(newNodes.map(node => [node.id, node]));
   const newLinks = graph.links
     .filter(link => newNodeById.has(link.source) && newNodeById.has(link.target))
-    .map(link => Object.assign(state.linkById.get(link.id) || {}, link));
+    .map(link => Object.assign(appState.linkById.get(link.id) || {}, link));
 
-  state.nodes = newNodes;
-  state.links = newLinks;
-  state.nodeById = newNodeById;
-  state.linkById = new Map(newLinks.map(link => [link.id, link]));
+  appState.nodes = newNodes;
+  appState.links = newLinks;
+  appState.nodeById = newNodeById;
+  appState.linkById = new Map(newLinks.map(link => [link.id, link]));
 
-  document.getElementById('graph-empty').style.display = state.nodes.length ? 'none' : 'flex';
+  document.getElementById('graph-empty').style.display = appState.nodes.length ? 'none' : 'flex';
 
   linkSel = linkLayer.selectAll('line')
-    .data(state.links, d => d.id)
+    .data(appState.links, d => d.id)
     .join(
       enter => enter.append('line').attr('class', 'link'),
       update => update,
@@ -205,7 +291,7 @@ function mergeGraph(graph) {
     .attr('stroke-width', d => Math.max(1, Math.min(7, 1 + (d.weight || 0) * 5)));
 
   nodeSel = nodeLayer.selectAll('circle')
-    .data(state.nodes, d => d.id)
+    .data(appState.nodes, d => d.id)
     .join(
       enter => enter.append('circle')
         .attr('class', d => 'node ' + d.kind)
@@ -213,6 +299,7 @@ function mergeGraph(graph) {
         .on('mouseenter', showTooltip)
         .on('mousemove', moveTooltip)
         .on('mouseleave', hideTooltip)
+        .on('click', (event, d) => onGraphNodeClick(d))
         .call(d3.drag()
           .on('start', dragStart)
           .on('drag', dragged)
@@ -224,7 +311,7 @@ function mergeGraph(graph) {
     .attr('r', d => 8 + Math.min(12, d.degree || 0) + ((d.activeOperators && d.activeOperators.length) ? 3 : 0));
 
   labelSel = labelLayer.selectAll('text')
-    .data(state.nodes.filter(d => d.kind !== 'document' || (d.activeOperators && d.activeOperators.length)), d => d.id)
+    .data(appState.nodes.filter(d => d.kind !== 'document' || (d.activeOperators && d.activeOperators.length)), d => d.id)
     .join(
       enter => enter.append('text').attr('class', 'label'),
       update => update,
@@ -232,10 +319,10 @@ function mergeGraph(graph) {
     )
     .text(d => shortLabel(d.label || d.id));
 
-  simulation.nodes(state.nodes);
-  simulation.force('link').links(state.links);
-  simulation.alpha(state.graphVersion === graph.version ? 0.12 : 0.35).restart();
-  state.graphVersion = graph.version;
+  simulation.nodes(appState.nodes);
+  simulation.force('link').links(appState.links);
+  simulation.alpha(appState.graphVersion === graph.version ? 0.12 : 0.35).restart();
+  appState.graphVersion = graph.version;
 }
 
 function shortLabel(text) {
@@ -282,16 +369,297 @@ function dragEnd(event, d) {
   d.fy = null;
 }
 
+// ════════════════════════════════════════════════════════════════
+// Graph node click → select node for User Actor
+// ════════════════════════════════════════════════════════════════
+async function onGraphNodeClick(d) {
+  if (!d || !d.id) return;
+  // If User Actor is selected, call select_node
+  const actor = appState.selectedActor;
+  if (actor === 'user') {
+    await apiPost('/api/actors/user/select_node', {node_id: d.id});
+    await refreshPanel();
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// API helpers
+// ════════════════════════════════════════════════════════════════
+async function apiGet(path) {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+async function apiPost(path, body) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+// ════════════════════════════════════════════════════════════════
+// Actor Panel Rendering
+// ════════════════════════════════════════════════════════════════
+function renderActors(actors) {
+  appState.actors = actors || [];
+  const sel = document.getElementById('actor-selector');
+  sel.innerHTML = (actors || []).map(a =>
+    `<button class="actor-btn${appState.selectedActor === a.id ? ' active' : ''}" onclick="selectActor('${esc(a.id)}')">
+      ${esc(a.id)}<span class="badge">${esc(a.kind)}</span>
+    </button>`
+  ).join('');
+}
+
+async function selectActor(actorId) {
+  appState.selectedActor = actorId;
+  renderActors(appState.actors);
+  await refreshPanel();
+}
+
+async function refreshPanel() {
+  const actorId = appState.selectedActor;
+  if (!actorId) return;
+  try {
+    const data = await apiGet(`/api/actors/${encodeURIComponent(actorId)}/panel`);
+    appState.panel = data.panel || null;
+    renderActorPanel(appState.panel);
+  } catch (e) {
+    document.getElementById('actor-panel-body').innerHTML = `<div class="error">${esc(e.message)}</div>`;
+  }
+}
+
+function renderActorPanel(panel) {
+  const el = document.getElementById('actor-panel-body');
+  if (!panel) {
+    el.innerHTML = '<div style="padding:18px;text-align:center;color:#7c8794;font-size:13px">No panel data</div>';
+    return;
+  }
+
+  const isUser = panel.actor_kind === 'user';
+  const ro = panel.is_readonly;
+  document.getElementById('actor-panel-meta').textContent = `${esc(panel.actor_id)} @ ${esc(panel.current_node || '-')}`;
+
+  const outEdges = (panel.out_edges || []).map(e =>
+    `<div class="edge-row${isUser ? ' clickable' : ''}${e.selected ? ' selected' : ''}" ${isUser ? `onclick="userSelectOutEdge('${esc(e.target)}')"` : ''}>
+      <span class="edge-dir">→</span>
+      <span class="edge-node">${esc(e.target)}</span>
+      <span class="edge-kind">${esc(e.target_kind)}</span>
+      <span class="edge-weight">${e.weight.toFixed(2)}</span>
+    </div>`
+  ).join('');
+
+  const inEdges = (panel.in_edges || []).map(e =>
+    `<div class="edge-row">
+      <span class="edge-dir">←</span>
+      <span class="edge-node">${esc(e.source)}</span>
+      <span class="edge-kind">${esc(e.source_kind)}</span>
+      <span class="edge-weight">${e.weight.toFixed(2)}</span>
+    </div>`
+  ).join('');
+
+  const stashItems = (panel.stash || []).map(s =>
+    `<div class="stash-item">
+      <span class="stash-node">${esc(s.title || s.node_id)}</span>
+      <span class="stash-ttl">${s.expires_at ? Math.max(0, Math.round((s.expires_at - Date.now()/1000))) + 's' : '∞'}</span>
+      ${isUser ? `<span class="stash-del" onclick="userRemoveStash('${esc(s.node_id)}')">×</span>` : ''}
+    </div>`
+  ).join('');
+
+  const activeMsgs = (panel.active_messages || []).map(m =>
+    `<div class="msg-row${panel.selected_message === m.id ? ' selected' : ''}" onclick="userSelectMsg('${esc(m.id)}')">
+      <span class="msg-id">${esc(m.id.slice(-10))}</span>
+      <span class="msg-summary">${esc(m.summary || m.type)}</span>
+      <span class="msg-status active">active</span>
+    </div>`
+  ).join('');
+
+  const blockedMsgs = (panel.blocked_messages || []).map(m =>
+    `<div class="msg-row">
+      <span class="msg-id">${esc(m.id.slice(-10))}</span>
+      <span class="msg-summary">${esc(m.summary || m.type)}</span>
+      <span class="msg-status blocked">blocked</span>
+    </div>`
+  ).join('');
+
+  let msgActions = '';
+  if (isUser && panel.selected_message) {
+    msgActions = `<div class="msg-actions">
+      <button class="msg-btn" onclick="userSetDone()">Done [D]</button>
+      <button class="msg-btn" onclick="userDeleteMsg()">Delete [X]</button>
+    </div>`;
+  }
+
+  let noteControls = '';
+  if (isUser) {
+    noteControls = `<div class="note-area">
+      <textarea class="note-input" id="note-input" placeholder="记录你的想法... (Enter 提交, Shift+Enter 换行)" rows="2"></textarea>
+      <div class="note-bar">
+        <button class="note-btn" onclick="userCommitNote()">Commit Note [C]</button>
+      </div>
+      <div class="kbd-hint">[E] select edge [N] nav [R] reset [S] stash [M] next msg</div>
+    </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="section">
+      <div class="section-title">Current Chunk</div>
+      <div class="chunk-card">
+        <div class="chunk-title">${esc(panel.current_node_title || panel.current_node || '(none)')}
+          ${ro ? '<span class="readonly-tag">readonly</span>' : ''}
+          ${panel.current_node_kind ? `<span style="color:#7c8794;font-size:10px;margin-left:4px">${esc(panel.current_node_kind)}</span>` : ''}
+        </div>
+        ${panel.current_node_content_preview ? `<div class="chunk-content">${esc(panel.current_node_content_preview)}</div>` : ''}
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Out Edges (${(panel.out_edges||[]).length})</div>
+      <div class="edge-list">${outEdges || '<div style="padding:4px 6px;font-size:12px;color:#5a6a7a">no out edges</div>'}</div>
+    </div>
+    <div class="section">
+      <div class="section-title">In Edges (${(panel.in_edges||[]).length})</div>
+      <div class="edge-list">${inEdges || '<div style="padding:4px 6px;font-size:12px;color:#5a6a7a">no in edges</div>'}</div>
+    </div>
+    <div class="section">
+      <div class="section-title">Stash (${(panel.stash||[]).length})${isUser ? ' <span style="color:#5a6a7a;font-weight:400;text-transform:none">| click graph node + [S] to stash</span>' : ''}</div>
+      <div class="stash-list">${stashItems || '<div style="padding:4px 6px;font-size:12px;color:#5a6a7a">empty</div>'}</div>
+    </div>
+    <div class="section">
+      <div class="section-title">Messages (${(panel.active_messages||[]).length} active / ${(panel.blocked_messages||[]).length} blocked)</div>
+      <div class="msg-list">${activeMsgs || '<div style="padding:4px 6px;font-size:12px;color:#5a6a7a">no active messages</div>'}</div>
+      ${msgActions}
+      ${blockedMsgs ? '<div class="section-title" style="padding-top:4px">Blocked</div><div class="msg-list">' + blockedMsgs + '</div>' : ''}
+    </div>
+    ${noteControls}
+  `;
+}
+
+// ════════════════════════════════════════════════════════════════
+// User Actor Commands (called from UI)
+// ════════════════════════════════════════════════════════════════
+async function userSelectOutEdge(target) {
+  await apiPost('/api/actors/user/select_out_edge', {target});
+  await refreshPanel();
+}
+
+async function userNavEdge() {
+  await apiPost('/api/actors/user/nav_selected_edge', {});
+  await refreshPanel();
+}
+
+async function userRandomSelect() {
+  await apiPost('/api/actors/user/random_select_out_edge', {});
+  await refreshPanel();
+}
+
+async function userRandomReset() {
+  await apiPost('/api/actors/user/random_reset_cursor', {});
+  await refreshPanel();
+}
+
+async function userStash() {
+  const panel = appState.panel;
+  if (!panel || !panel.current_node) return;
+  await apiPost('/api/actors/user/add_to_stash', {node_id: panel.current_node, reason: 'manual'});
+  await refreshPanel();
+}
+
+async function userRemoveStash(nodeId) {
+  await apiPost('/api/actors/user/remove_from_stash', {node_id: nodeId});
+  await refreshPanel();
+}
+
+async function userSelectMsg(msgId) {
+  // Toggle: click the same message again → select_message_next
+  if (appState.panel && appState.panel.selected_message === msgId) {
+    await apiPost('/api/actors/user/select_message_next', {});
+  } else {
+    // Set selected_message directly via API
+    // We'll use select_message_next to cycle
+    await apiPost('/api/actors/user/select_message_next', {});
+  }
+  await refreshPanel();
+}
+
+async function userSetDone() {
+  await apiPost('/api/actors/user/set_message_done', {});
+  await refreshPanel();
+}
+
+async function userDeleteMsg() {
+  await apiPost('/api/actors/user/delete_message', {});
+  await refreshPanel();
+}
+
+async function userCommitNote() {
+  const input = document.getElementById('note-input');
+  if (!input || !input.value.trim()) return;
+  await apiPost('/api/actors/user/commit_note', {content: input.value.trim()});
+  input.value = '';
+  await refreshPanel();
+}
+
+// ════════════════════════════════════════════════════════════════
+// Keyboard shortcuts
+// ════════════════════════════════════════════════════════════════
+document.addEventListener('keydown', async (e) => {
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  if (appState.selectedActor !== 'user') return;
+
+  switch (e.key.toLowerCase()) {
+    case 'e': await userRandomSelect(); break;
+    case 'n': await userNavEdge(); break;
+    case 'r': await userRandomReset(); break;
+    case 's': await userStash(); break;
+    case 'm': await apiPost('/api/actors/user/select_message_next', {}); await refreshPanel(); break;
+    case 'd': await userSetDone(); break;
+    case 'x': await userDeleteMsg(); break;
+    case 'c':
+      const input = document.getElementById('note-input');
+      if (input) input.focus();
+      break;
+  }
+});
+
+// Enter in note input → commit (Shift+Enter for newline)
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    const input = document.getElementById('note-input');
+    if (input && document.activeElement === input) {
+      e.preventDefault();
+      userCommitNote();
+    }
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// Snapshot rendering (existing, extended with actors)
+// ════════════════════════════════════════════════════════════════
 function renderSnapshot(snapshot) {
-  state.snapshot = snapshot;
+  appState.snapshot = snapshot;
   document.getElementById('status').textContent = snapshot.ready
     ? `running=${snapshot.runtime.running} round=${snapshot.runtime.round} uptime=${fmt(snapshot.runtime.uptime_seconds)}s`
     : 'runtime not ready';
   renderKpis(snapshot);
-  renderOperators(snapshot.operators || []);
   renderTokenChart(snapshot.tokens || {});
   renderQuests(snapshot.quests || {active: [], completed: []});
   mergeGraph(snapshot.graph || {version: 0, nodes: [], links: []});
+
+  // Render actor list
+  const actors = snapshot.actors || [];
+  appState.operators = snapshot.operators || [];
+  renderActors(actors);
+
+  // Auto-select first actor if none selected
+  if (!appState.selectedActor && actors.length) {
+    selectActor(actors[0].id);
+  } else if (appState.selectedActor) {
+    // Refresh current actor's panel
+    refreshPanel();
+  }
 }
 
 function renderKpis(snapshot) {
@@ -311,18 +679,6 @@ function renderKpis(snapshot) {
   document.getElementById('kpis').innerHTML = cells.map(([label, value]) =>
     `<div class="kpi"><div class="kpi-label">${esc(label)}</div><div class="kpi-value">${fmt(value)}</div></div>`
   ).join('');
-}
-
-function renderOperators(operators) {
-  document.getElementById('operator-count').textContent = fmt(operators.length);
-  document.getElementById('operators').innerHTML = operators.length ? operators.map(op => `
-    <div class="op-row">
-      <div class="op-id">${esc(op.id)}</div>
-      <div class="badge">${esc(op.mbti || '-')}</div>
-      <div class="op-node" title="${esc(op.node || '')}">${esc(op.node || '(none)')}</div>
-      <div class="op-action">${esc(op.action || '-')}</div>
-    </div>
-  `).join('') : '<div class="event-row"><div class="event-type">empty</div><div class="event-detail">No operators reported yet</div></div>';
 }
 
 function renderTokenChart(tokens) {
@@ -348,7 +704,6 @@ function renderTokenChart(tokens) {
   const line = d3.line().x(d => x(d.x)).y(d => y(d.y)).curve(d3.curveMonotoneX);
   chart.append('path').datum(pts).attr('fill', 'none').attr('stroke', '#79d8b0').attr('stroke-width', 2).attr('d', line);
   chart.selectAll('circle').data(pts).join('circle').attr('cx', d => x(d.x)).attr('cy', d => y(d.y)).attr('r', 2).attr('fill', '#79d8b0').attr('opacity', 0.7);
-  // Y axis label
   chart.append('text').attr('x', width - 8).attr('y', 16).attr('text-anchor', 'end').attr('fill', '#7c8794').attr('font-size', 10).text('t/s');
 }
 
@@ -370,10 +725,10 @@ function renderQuests(quests) {
 
 function pushEvent(event) {
   if (event.type === 'ping') return;
-  state.events.unshift(Object.assign({at: Date.now()}, event));
-  state.events = state.events.slice(0, 60);
-  document.getElementById('event-count').textContent = fmt(state.events.length);
-  document.getElementById('events').innerHTML = state.events.map(item => {
+  appState.events.unshift(Object.assign({at: Date.now()}, event));
+  appState.events = appState.events.slice(0, 60);
+  document.getElementById('event-count').textContent = fmt(appState.events.length);
+  document.getElementById('events').innerHTML = appState.events.map(item => {
     const detail = item.operator ? `${item.operator.id} ${item.operator.action} ${item.operator.detail || ''}` :
       item.tokens ? `${item.tokens.operator_id || 'llm'} ${item.tokens.action}: ${item.tokens.tokens} tokens (${item.tokens.source})` :
       JSON.stringify(item);
@@ -392,9 +747,9 @@ async function fetchSnapshot() {
 }
 
 function connectStream() {
-  if (state.source) state.source.close();
-  state.source = new EventSource('/api/dashboard/stream');
-  state.source.addEventListener('dashboard', event => {
+  if (appState.source) appState.source.close();
+  appState.source = new EventSource('/api/dashboard/stream');
+  appState.source.addEventListener('dashboard', event => {
     try {
       pushEvent(JSON.parse(event.data));
       fetchSnapshot();
@@ -402,8 +757,8 @@ function connectStream() {
       pushEvent({type: 'stream_error', message: error.message});
     }
   });
-  state.source.onerror = () => {
-    state.source.close();
+  appState.source.onerror = () => {
+    appState.source.close();
     setTimeout(connectStream, 2000);
   };
 }
