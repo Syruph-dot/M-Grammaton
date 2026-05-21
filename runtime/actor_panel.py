@@ -90,6 +90,8 @@ class UserActor:
     Operator 的对应状态由其 AsyncOperator 实例管理。
     """
 
+    STASH_DEFAULT_TTL = 300  # 5 分钟
+
     def __init__(self):
         self.id = "user"
         self.kind = "user"
@@ -98,9 +100,15 @@ class UserActor:
         self.selected_message: str = ""
         self.active_messages: list[MessageEnvelope] = []
         self.blocked_messages: list[MessageEnvelope] = []
+        self._selected_out_edge_target: str = ""
+        self._panel_events: list[dict] = []
+        self._message_counter = 0
+
+    # ── 基础操作 ────────────────────────────────────────
 
     def bind(self, node):
         self.current.bind(node)
+        self._selected_out_edge_target = ""
         return self
 
     @property
@@ -109,6 +117,275 @@ class UserActor:
             return self.current.get().name
         except ReferenceError:
             return ""
+
+    # ── 面板事件 ────────────────────────────────────────
+
+    def _add_event(self, action: str, detail: str = ""):
+        self._panel_events.append({
+            "actor_id": self.id,
+            "action": action,
+            "detail": detail,
+            "timestamp": time.time(),
+        })
+        if len(self._panel_events) > 200:
+            self._panel_events = self._panel_events[-100:]
+
+    # ── 003: Cursor 命令 ─────────────────────────────
+
+    def select_out_edge(self, target_node_name: str) -> bool:
+        """只改变 selected edge，不移动 cursor。"""
+        try:
+            node = self.current.get()
+        except ReferenceError:
+            return False
+        for e in node.outlinks:
+            if e.target.name == target_node_name:
+                self._selected_out_edge_target = target_node_name
+                self._add_event("select_out_edge", target_node_name)
+                return True
+        return False
+
+    def nav_selected_edge(self, graph: MGraph | None = None) -> tuple[bool, str]:
+        """沿 selected edge 移动 cursor，并清理失效 selection。"""
+        target = self._selected_out_edge_target
+        if not target:
+            return False, "no_selected_edge"
+        try:
+            node = self.current.get()
+        except ReferenceError:
+            return False, "no_current_node"
+        # 检查 selected target 是否仍是出边
+        valid = any(e.target.name == target for e in node.outlinks)
+        if not valid:
+            self._selected_out_edge_target = ""
+            return False, "stale_edge"
+        # 在图中找目标节点
+        if graph is None:
+            return False, "no_graph"
+        for n in graph.V:
+            if n.name == target:
+                self.bind(n)
+                self._add_event("nav_selected_edge", target)
+                return True, target
+        self._selected_out_edge_target = ""
+        return False, "target_not_found"
+
+    def random_select_out_edge(self, graph: MGraph | None = None) -> tuple[bool, str]:
+        """按当前边权抽样一个 out edge 并高亮。"""
+        try:
+            node = self.current.get()
+        except ReferenceError:
+            return False, "no_current_node"
+        if not node.outlinks:
+            self._selected_out_edge_target = ""
+            return False, "no_out_edges"
+        # 加权随机
+        total = sum(e.value for e in node.outlinks)
+        if total <= 0:
+            # 均匀
+            import random
+            edge = random.choice(node.outlinks)
+        else:
+            import random
+            r = random.random() * total
+            walked = 0.0
+            edge = node.outlinks[-1]
+            for e in node.outlinks:
+                walked += e.value
+                if walked >= r:
+                    edge = e
+                    break
+        self._selected_out_edge_target = edge.target.name
+        self._add_event("random_select_out_edge", edge.target.name)
+        return True, edge.target.name
+
+    def random_reset_cursor(self, graph: MGraph | None = None) -> tuple[bool, str]:
+        """绑定到随机 node，空图时返回错误。"""
+        if graph is None or not graph.V:
+            return False, "empty_graph"
+        import random
+        node = random.choice(list(graph.V))
+        self.bind(node)
+        self._add_event("random_reset_cursor", node.name)
+        return True, node.name
+
+    # ── 004: Stash ──────────────────────────────────
+
+    def add_to_stash(self, node, reason: str = "", ttl: int | None = None) -> bool:
+        """当前 chunk 加入 actor stash。"""
+        try:
+            node_name = node.name
+            title = getattr(node, "title", node_name) or node_name
+        except Exception:
+            return False
+        # 避免重复
+        for item in self.stash:
+            if item.node_id == node_name:
+                return False
+        now = time.time()
+        item = StashItem(
+            node_id=node_name,
+            title=title,
+            added_at=now,
+            expires_at=now + (ttl if ttl is not None else self.STASH_DEFAULT_TTL),
+            reason=reason,
+        )
+        self.stash.append(item)
+        self._add_event("add_to_stash", node_name)
+        return True
+
+    def remove_from_stash(self, node_id: str) -> bool:
+        """移除 stash item。"""
+        for i, item in enumerate(self.stash):
+            if item.node_id == node_id:
+                self.stash.pop(i)
+                self._add_event("remove_from_stash", node_id)
+                return True
+        return False
+
+    # ── 006: Message Queue ──────────────────────────
+
+    def _next_message_id(self) -> str:
+        self._message_counter += 1
+        return f"msg_{self._message_counter}"
+
+    def add_message(self, type: str, summary: str = "", payload: dict | None = None) -> str:
+        """向 active queue 添加一条消息。"""
+        msg_id = self._next_message_id()
+        env = MessageEnvelope(
+            id=msg_id,
+            recipient=self.id,
+            type=type,
+            payload=payload or {},
+            summary=summary,
+            created_at=time.time(),
+            status="active",
+        )
+        self.active_messages.append(env)
+        return msg_id
+
+    def select_message_next(self) -> bool:
+        """选择 active queue 中下一条消息。"""
+        if not self.active_messages:
+            return False
+        ids = [m.id for m in self.active_messages if m.status == "active"]
+        if not ids:
+            return False
+        if not self.selected_message or self.selected_message not in ids:
+            self.selected_message = ids[0]
+        else:
+            idx = ids.index(self.selected_message)
+            self.selected_message = ids[(idx + 1) % len(ids)]
+        return True
+
+    def select_message_prev(self) -> bool:
+        """选择 active queue 中上一条消息。"""
+        if not self.active_messages:
+            return False
+        ids = [m.id for m in self.active_messages if m.status == "active"]
+        if not ids:
+            return False
+        if not self.selected_message or self.selected_message not in ids:
+            self.selected_message = ids[-1]
+        else:
+            idx = ids.index(self.selected_message)
+            self.selected_message = ids[(idx - 1) % len(ids)]
+        return True
+
+    def set_message_done(self) -> bool:
+        """把 selected message 标为 done 并从 active queue 移出。"""
+        if not self.selected_message:
+            return False
+        for m in self.active_messages:
+            if m.id == self.selected_message:
+                m.status = "done"
+                self.active_messages.remove(m)
+                self.selected_message = ""
+                self._add_event("set_message_done", m.id)
+                return True
+        self.selected_message = ""
+        return False
+
+    def delete_message(self) -> bool:
+        """软删除 selected message。"""
+        if not self.selected_message:
+            return False
+        for m in self.active_messages:
+            if m.id == self.selected_message:
+                m.status = "deleted"
+                self.active_messages.remove(m)
+                self.selected_message = ""
+                self._add_event("delete_message", m.id)
+                return True
+        self.selected_message = ""
+        return False
+
+    def block_message(self, msg_id: str, reason: str = "unsupported") -> bool:
+        """把消息移入 blocked queue。"""
+        for m in self.active_messages:
+            if m.id == msg_id:
+                m.status = "blocked"
+                self.active_messages.remove(m)
+                self.blocked_messages.append(m)
+                if self.selected_message == msg_id:
+                    self.selected_message = ""
+                self._add_event("block_message", msg_id)
+                return True
+        return False
+
+    # ── 005: Note / Reply Commit ─────────────────────
+
+    def _next_artifact_id(self, prefix: str = "note") -> str:
+        self._message_counter += 1
+        return f"{prefix}_{self.id}_{int(time.time())}_{self._message_counter}"
+
+    def commit_note(self, content: str, graph: MGraph | None = None) -> tuple[bool, str]:
+        """在当前 chunk 创建 Note artifact。"""
+        if not content.strip():
+            return False, "empty_content"
+        if graph is None:
+            return False, "no_graph"
+        try:
+            source = self.current.get()
+        except ReferenceError:
+            return False, "no_current_node"
+
+        note_id = self._next_artifact_id("note")
+        note = Node(note_id, kind="note", content=content.strip(), mg=graph)
+        note.title = f"Note: {content[:40]}"
+        source.link_to(note, 1.0)
+        self._add_event("commit_note", note_id)
+        return True, note_id
+
+    def commit_reply(self, content: str, quest_name: str | None = None,
+                     graph: MGraph | None = None) -> tuple[bool, str]:
+        """对 selected Quest 提交 Answer artifact；无 quest 时创建 Note。"""
+        if not content.strip():
+            return False, "empty_content"
+        if graph is None:
+            return False, "no_graph"
+
+        if quest_name:
+            # 回复 Quest → 创建 AnswerNode
+            for node in graph.V:
+                if isinstance(node, QuestNode) and node.name == quest_name:
+                    ans_id = self._next_artifact_id("answer")
+                    ans = AnswerNode(
+                        ans_id,
+                        content=content.strip(),
+                        answerer_id=self.id,
+                        quest_name=quest_name,
+                    )
+                    graph.add_node(ans)
+                    node.link_to(ans, 1.0)
+                    self._add_event("commit_reply", ans_id)
+                    return True, ans_id
+            return False, "quest_not_found"
+
+        # 无 quest → 创建 Note artifact
+        return self.commit_note(content, graph)
+
+    # ── Panel State 构建 ─────────────────────────────
 
     def build_panel_state(self, graph: MGraph | None = None) -> ActorPanelState:
         """构建当前 User 的面板快照。"""
@@ -138,9 +415,10 @@ class UserActor:
             state.is_readonly = _is_human_source(node)
             content = getattr(node, "content", "")
             state.current_node_content_preview = content[:200] if content else ""
+            sel = self._selected_out_edge_target
             state.out_edges = [
                 {"target": e.target.name, "target_kind": _node_kind(e.target),
-                 "weight": e.value, "selected": False}
+                 "weight": e.value, "selected": e.target.name == sel}
                 for e in node.outlinks
             ]
             state.in_edges = [
@@ -184,6 +462,11 @@ class UserActor:
             "kind": self.kind,
             "current_node": self.current_node,
         }
+
+    def pop_events(self) -> list[dict]:
+        events = list(self._panel_events)
+        self._panel_events = []
+        return events
 
 
 # ── Operator Panel 构建 ──────────────────────────────────

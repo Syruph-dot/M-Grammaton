@@ -213,6 +213,146 @@ async def user_select_node(node_id: str):
     return {"ok": False, "error": f"node '{node_id}' not found"}
 
 
+# ── Actor Panel Commands ─────────────────────────────
+
+
+@app.post("/api/actors/user/select_out_edge")
+async def api_select_out_edge(target: str):
+    if user_actor_ref is None:
+        return {"ok": False, "error": "user actor not ready"}
+    ok = user_actor_ref.select_out_edge(target)
+    if not ok:
+        return {"ok": False, "error": f"out edge to '{target}' not found"}
+    graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+    return {"ok": True, "panel": user_actor_ref.build_panel_state(graph).to_dict()}
+
+
+@app.post("/api/actors/user/nav_selected_edge")
+async def api_nav_selected_edge():
+    if user_actor_ref is None:
+        return {"ok": False, "error": "user actor not ready"}
+    graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+    ok, detail = user_actor_ref.nav_selected_edge(graph)
+    if not ok:
+        return {"ok": False, "error": detail}
+    return {"ok": True, "detail": detail, "panel": user_actor_ref.build_panel_state(graph).to_dict()}
+
+
+@app.post("/api/actors/user/random_select_out_edge")
+async def api_random_select_out_edge():
+    if user_actor_ref is None:
+        return {"ok": False, "error": "user actor not ready"}
+    graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+    ok, detail = user_actor_ref.random_select_out_edge(graph)
+    if not ok:
+        return {"ok": False, "error": detail}
+    return {"ok": True, "detail": detail, "panel": user_actor_ref.build_panel_state(graph).to_dict()}
+
+
+@app.post("/api/actors/user/random_reset_cursor")
+async def api_random_reset_cursor():
+    if user_actor_ref is None:
+        return {"ok": False, "error": "user actor not ready"}
+    graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+    ok, detail = user_actor_ref.random_reset_cursor(graph)
+    if not ok:
+        return {"ok": False, "error": detail}
+    return {"ok": True, "detail": detail, "panel": user_actor_ref.build_panel_state(graph).to_dict()}
+
+
+@app.post("/api/actors/user/add_to_stash")
+async def api_add_to_stash(node_id: str, reason: str = "", ttl: int | None = 300):
+    if user_actor_ref is None:
+        return {"ok": False, "error": "user actor not ready"}
+    graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+    if graph is None:
+        return {"ok": False, "error": "graph not ready"}
+    for node in graph.V:
+        if node.name == node_id:
+            ok = user_actor_ref.add_to_stash(node, reason, ttl)
+            return {"ok": ok, "panel": user_actor_ref.build_panel_state(graph).to_dict()}
+    return {"ok": False, "error": f"node '{node_id}' not found"}
+
+
+@app.post("/api/actors/user/remove_from_stash")
+async def api_remove_from_stash(node_id: str):
+    if user_actor_ref is None:
+        return {"ok": False, "error": "user actor not ready"}
+    ok = user_actor_ref.remove_from_stash(node_id)
+    graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+    return {"ok": ok, "panel": user_actor_ref.build_panel_state(graph).to_dict()}
+
+
+@app.post("/api/actors/user/select_message_next")
+async def api_select_message_next():
+    if user_actor_ref is None:
+        return {"ok": False, "error": "user actor not ready"}
+    ok = user_actor_ref.select_message_next()
+    graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+    return {"ok": ok, "panel": user_actor_ref.build_panel_state(graph).to_dict()}
+
+
+@app.post("/api/actors/user/select_message_prev")
+async def api_select_message_prev():
+    if user_actor_ref is None:
+        return {"ok": False, "error": "user actor not ready"}
+    ok = user_actor_ref.select_message_prev()
+    graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+    return {"ok": ok, "panel": user_actor_ref.build_panel_state(graph).to_dict()}
+
+
+@app.post("/api/actors/user/set_message_done")
+async def api_set_message_done():
+    if user_actor_ref is None:
+        return {"ok": False, "error": "user actor not ready"}
+    ok = user_actor_ref.set_message_done()
+    graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+    return {"ok": ok, "panel": user_actor_ref.build_panel_state(graph).to_dict()}
+
+
+@app.post("/api/actors/user/delete_message")
+async def api_delete_message():
+    if user_actor_ref is None:
+        return {"ok": False, "error": "user actor not ready"}
+    ok = user_actor_ref.delete_message()
+    graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+    return {"ok": ok, "panel": user_actor_ref.build_panel_state(graph).to_dict()}
+
+
+@app.post("/api/actors/user/add_message")
+async def api_add_message(type: str, summary: str = ""):
+    if user_actor_ref is None:
+        return {"ok": False, "error": "user actor not ready"}
+    msg_id = user_actor_ref.add_message(type, summary)
+    graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+    return {"ok": True, "message_id": msg_id, "panel": user_actor_ref.build_panel_state(graph).to_dict()}
+
+
+@app.get("/api/actors/user/events")
+async def api_user_events():
+    if user_actor_ref is None:
+        return {"events": []}
+    return {"events": user_actor_ref.pop_events()}
+
+
+@app.post("/api/actors/user/commit_note")
+async def api_commit_note(content: str):
+    if user_actor_ref is None:
+        return {"ok": False, "error": "user actor not ready"}
+    graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+    ok, detail = user_actor_ref.commit_note(content, graph)
+    return {"ok": ok, "detail": detail, "panel": user_actor_ref.build_panel_state(graph).to_dict()}
+
+
+@app.post("/api/actors/user/commit_reply")
+async def api_commit_reply(content: str, quest_name: str | None = None):
+    if user_actor_ref is None:
+        return {"ok": False, "error": "user actor not ready"}
+    graph = getattr(runtime_ref, "graph", None) if runtime_ref else None
+    ok, detail = user_actor_ref.commit_reply(content, quest_name, graph)
+    return {"ok": ok, "detail": detail, "panel": user_actor_ref.build_panel_state(graph).to_dict()}
+
+
 def _build_dashboard_snapshot(runtime_obj=None, monitor_obj=None, now: float | None = None) -> dict:
     now = time.time() if now is None else float(now)
     empty = {

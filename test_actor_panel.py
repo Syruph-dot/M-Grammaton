@@ -274,3 +274,368 @@ def test_build_operator_panel_unknown_actor_returns_empty():
     )
     assert state.actor_id == "ghost"
     assert state.current_node == ""
+
+
+# ── 003: Cursor 导航命令 ────────────────────────────────
+
+
+def test_select_out_edge_only_changes_selection():
+    graph = _make_graph()
+    user = UserActor()
+    source = next(n for n in graph.V if n.name == "source")
+    user.bind(source)
+
+    ok = user.select_out_edge("target")
+    assert ok is True
+
+    state = user.build_panel_state(graph)
+    assert state.out_edges[0]["selected"] is True
+    assert state.current_node == "source"  # 未移动 cursor
+
+
+def test_select_out_edge_invalid_target():
+    graph = _make_graph()
+    user = UserActor()
+    user.bind(next(n for n in graph.V if n.name == "source"))
+
+    ok = user.select_out_edge("nonexistent")
+    assert ok is False
+
+
+def test_nav_selected_edge_moves_cursor():
+    graph = _make_graph()
+    user = UserActor()
+    user.bind(next(n for n in graph.V if n.name == "source"))
+    user.select_out_edge("target")
+
+    ok, detail = user.nav_selected_edge(graph)
+    assert ok is True
+    assert detail == "target"
+    assert user.current_node == "target"
+
+
+def test_nav_without_selected_edge_returns_error():
+    graph = _make_graph()
+    user = UserActor()
+    user.bind(next(n for n in graph.V if n.name == "source"))
+
+    ok, detail = user.nav_selected_edge(graph)
+    assert ok is False
+    assert detail == "no_selected_edge"
+
+
+def test_nav_stale_edge_clears_selection():
+    """选中一个出边后修改图使其失效。"""
+    graph = _make_graph()
+    user = UserActor()
+    source = next(n for n in graph.V if n.name == "source")
+    user.bind(source)
+    user.select_out_edge("target")
+
+    # 手动移除边
+    target = next(n for n in graph.V if n.name == "target")
+    source.outlinks.clear()
+    target.inlinks.clear()
+
+    ok, detail = user.nav_selected_edge(graph)
+    assert ok is False
+    assert detail == "stale_edge"
+
+
+def test_random_select_out_edge_highlights_one():
+    graph = _make_graph()
+    user = UserActor()
+    user.bind(next(n for n in graph.V if n.name == "source"))
+
+    ok, detail = user.random_select_out_edge(graph)
+    assert ok is True
+    assert detail == "target"  # 只有一条出边
+    state = user.build_panel_state(graph)
+    assert state.out_edges[0]["selected"] is True
+
+
+def test_random_select_no_out_edges():
+    graph = MGraph()
+    Node("lonely", mg=graph)
+    user = UserActor()
+    user.bind(next(iter(graph.V)))
+
+    ok, detail = user.random_select_out_edge(graph)
+    assert ok is False
+    assert detail == "no_out_edges"
+
+
+def test_random_reset_cursor_binds_to_random_node():
+    graph = _make_graph()
+    user = UserActor()
+    user.bind(next(n for n in graph.V if n.name == "source"))
+
+    ok, detail = user.random_reset_cursor(graph)
+    assert ok is True
+    assert user.current_node in {"source", "target"}
+
+
+def test_random_reset_cursor_empty_graph():
+    user = UserActor()
+    ok, detail = user.random_reset_cursor(MGraph())
+    assert ok is False
+    assert detail == "empty_graph"
+
+
+# ── 004: Stash ──────────────────────────────────────
+
+
+def test_add_to_stash():
+    graph = _make_graph()
+    user = UserActor()
+    node = next(n for n in graph.V if n.name == "source")
+    user.bind(node)
+
+    ok = user.add_to_stash(node, reason="测试收藏")
+    assert ok is True
+
+    state = user.build_panel_state(graph)
+    assert len(state.stash) == 1
+    assert state.stash[0]["node_id"] == "source"
+    assert state.stash[0]["reason"] == "测试收藏"
+
+
+def test_add_to_stash_duplicate_rejected():
+    graph = _make_graph()
+    user = UserActor()
+    node = next(n for n in graph.V if n.name == "source")
+
+    user.add_to_stash(node)
+    ok = user.add_to_stash(node)
+    assert ok is False  # 重复添加失败
+
+
+def test_remove_from_stash():
+    graph = _make_graph()
+    user = UserActor()
+    node = next(n for n in graph.V if n.name == "source")
+    user.add_to_stash(node)
+
+    ok = user.remove_from_stash("source")
+    assert ok is True
+
+    state = user.build_panel_state(graph)
+    assert len(state.stash) == 0
+
+
+def test_stash_ttl_expiry():
+    graph = _make_graph()
+    user = UserActor()
+    node = next(n for n in graph.V if n.name == "source")
+
+    # TTL=0 表示立即过期
+    ok = user.add_to_stash(node, ttl=0)
+    assert ok is True
+
+    state = user.build_panel_state(graph)
+    assert len(state.stash) == 0  # 已过期
+
+
+def test_stash_remove_nonexistent():
+    user = UserActor()
+    ok = user.remove_from_stash("ghost")
+    assert ok is False
+
+
+# ── 006: Message Queue ─────────────────────────────
+
+
+def test_add_message():
+    user = UserActor()
+    msg_id = user.add_message("test", "hello world")
+    assert msg_id.startswith("msg_")
+
+    state = user.build_panel_state()
+    assert len(state.active_messages) == 1
+    assert state.active_messages[0]["summary"] == "hello world"
+    assert state.active_messages[0]["status"] == "active"
+
+
+def test_select_message_next():
+    user = UserActor()
+    user.add_message("type_a", "first")
+    user.add_message("type_b", "second")
+
+    ok = user.select_message_next()
+    assert ok is True
+    assert user.selected_message != ""
+
+    ok = user.select_message_next()
+    assert ok is True
+
+    # 循环回到第一个
+    state = user.build_panel_state()
+    assert len(state.active_messages) == 2
+
+
+def test_select_message_prev():
+    user = UserActor()
+    user.add_message("type_a", "first")
+    user.add_message("type_b", "second")
+
+    user.select_message_next()  # 选中第一个
+    ok = user.select_message_prev()  # 回到最后一个
+    assert ok is True
+
+
+def test_select_message_empty_queue():
+    user = UserActor()
+    ok = user.select_message_next()
+    assert ok is False
+
+
+def test_set_message_done():
+    user = UserActor()
+    msg_id = user.add_message("test", "do me")
+    user.selected_message = msg_id
+
+    ok = user.set_message_done()
+    assert ok is True
+
+    state = user.build_panel_state()
+    assert len(state.active_messages) == 0
+
+
+def test_set_message_done_no_selection():
+    user = UserActor()
+    ok = user.set_message_done()
+    assert ok is False
+
+
+def test_delete_message():
+    user = UserActor()
+    msg_id = user.add_message("test", "delete me")
+    user.selected_message = msg_id
+
+    ok = user.delete_message()
+    assert ok is True
+
+    state = user.build_panel_state()
+    assert len(state.active_messages) == 0
+
+
+def test_block_message():
+    user = UserActor()
+    msg_id = user.add_message("unsupported", "bad msg")
+    user.selected_message = msg_id
+
+    ok = user.block_message(msg_id, "unsupported")
+    assert ok is True
+
+    state = user.build_panel_state()
+    assert len(state.active_messages) == 0
+    assert len(state.blocked_messages) == 1
+    assert state.blocked_messages[0]["id"] == msg_id
+
+
+def test_block_message_clears_selection():
+    user = UserActor()
+    msg_id = user.add_message("test", "block me")
+    user.selected_message = msg_id
+    user.block_message(msg_id)
+
+    assert user.selected_message == ""
+
+
+# ── 005: Note / Reply Commit ───────────────────────────
+
+
+def test_commit_note_creates_artifact():
+    graph = _make_graph()
+    user = UserActor()
+    user.bind(next(n for n in graph.V if n.name == "source"))
+
+    ok, note_id = user.commit_note("这是一条测试笔记", graph)
+    assert ok is True
+    assert note_id.startswith("note_user_")
+
+    # 验证 artifact 节点在图中
+    note_node = next((n for n in graph.V if n.name == note_id), None)
+    assert note_node is not None
+    assert note_node.kind == "note"
+    assert note_node.content == "这是一条测试笔记"
+
+    # 验证边：source -> note
+    source = next(n for n in graph.V if n.name == "source")
+    assert any(e.target.name == note_id for e in source.outlinks)
+
+
+def test_commit_note_empty_content():
+    graph = _make_graph()
+    user = UserActor()
+    user.bind(next(n for n in graph.V if n.name == "source"))
+
+    ok, detail = user.commit_note("", graph)
+    assert ok is False
+    assert detail == "empty_content"
+
+
+def test_commit_note_no_current_node():
+    graph = _make_graph()
+    user = UserActor()
+    ok, detail = user.commit_note("content", graph)
+    assert ok is False
+
+
+def test_commit_reply_to_quest():
+    graph = _make_graph()
+    quest = QuestNode("q_test", quester_id="Alice", content="测试问题")
+    graph.add_node(quest)
+    source = next(n for n in graph.V if n.name == "source")
+    source.link_to(quest, 1.0)
+
+    user = UserActor()
+    user.bind(source)
+
+    ok, ans_id = user.commit_reply("测试回答", quest_name="q_test", graph=graph)
+    assert ok is True
+    assert ans_id.startswith("answer_user_")
+
+    # 验证 AnswerNode 在图中
+    ans_node = next((n for n in graph.V if n.name == ans_id), None)
+    assert ans_node is not None
+    assert isinstance(ans_node, AnswerNode)
+    assert ans_node.content == "测试回答"
+    assert ans_node.answerer_id == "user"
+    assert ans_node.quest_name == "q_test"
+
+    # 验证边：quest -> answer
+    assert any(e.target.name == ans_id for e in quest.outlinks)
+
+
+def test_commit_reply_no_quest_creates_note():
+    graph = _make_graph()
+    user = UserActor()
+    user.bind(next(n for n in graph.V if n.name == "source"))
+
+    ok, note_id = user.commit_reply("fallback note", quest_name=None, graph=graph)
+    assert ok is True
+    assert note_id.startswith("note_user_")
+
+
+def test_commit_reply_quest_not_found():
+    graph = _make_graph()
+    user = UserActor()
+    user.bind(next(n for n in graph.V if n.name == "source"))
+
+    ok, detail = user.commit_reply("reply", quest_name="nonexistent", graph=graph)
+    assert ok is False
+    assert detail == "quest_not_found"
+
+
+def test_commit_does_not_write_human_files():
+    """验证 artifact commit 不修改 data/human/*.md。
+    此测试只验证 artifact 节点 kind 不是 'document'。"""
+    graph = _make_graph()
+    user = UserActor()
+    user.bind(next(n for n in graph.V if n.name == "source"))
+
+    ok, note_id = user.commit_note("纯 artifact", graph)
+    assert ok is True
+    note_node = next(n for n in graph.V if n.name == note_id)
+    assert note_node.kind == "note"  # 不是 document，不会被写入 human/
