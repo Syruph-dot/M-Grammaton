@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import math
@@ -25,7 +26,7 @@ DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 DEFAULT_TIMEOUT_S = 120
 MAX_RETRIES = 3
 RETRY_BACKOFF_S = 1.5
-DEFAULT_MODEL_LIST_PATH = "data/ALIYUN_MODEL_LIST"
+DEFAULT_MODEL_LIST_PATH = "ALIYUN_MODEL_LIST"
 
 
 class AliyunLLMClient:
@@ -222,3 +223,142 @@ class AliyunLLMClient:
             else:
                 total += 0.6
         return total
+
+
+class AsyncAliyunLLMClient:
+    """异步版阿里云百炼混发客户端。
+
+    - 从 data/ALIYUN_MODEL_LIST 文件中读取模型列表
+    - 每次 chat()/chat_json() 随机挑选一个模型
+    - 重试时重新随机挑选（同一请求的不同尝试可能使用不同模型）
+    - 与 AsyncLLMClient 保持相同的 chat()/chat_json()/close() 接口
+    - 支持 token 用量上报到 monitor
+    """
+
+    def __init__(
+        self,
+        config,
+        monitor=None,
+        operator_id: str | None = None,
+        model_list_path: str | Path = DEFAULT_MODEL_LIST_PATH,
+    ):
+        self.api_key = config.api_key
+        self.base_url = config.base_url.rstrip("/")
+        self.temperature = getattr(config, "temperature", 0.7)
+        self.monitor = monitor
+        self.operator_id = operator_id
+        self.model_list = self._load_model_list(model_list_path)
+        self._client = httpx.AsyncClient(
+            base_url=self.base_url,
+            timeout=httpx.Timeout(DEFAULT_TIMEOUT_S),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}",
+            },
+        )
+        logger.info(
+            "AsyncAliyunLLMClient 已加载 %d 个模型: %s",
+            len(self.model_list), ", ".join(self.model_list),
+        )
+
+    @staticmethod
+    def _load_model_list(path: str | Path) -> list[str]:
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"模型列表文件不存在: {path}")
+        with open(path, "r", encoding="utf-8") as f:
+            models = [line.strip() for line in f if line.strip()]
+        if not models:
+            raise ValueError(f"模型列表文件为空: {path}")
+        return models
+
+    def _pick_model(self) -> str:
+        return random.choice(self.model_list)
+
+    async def chat(self, messages, max_retries=3, telemetry_action="chat") -> str:
+        """普通文本回复，返回 content 字符串。"""
+        return await self._chat_once(messages, max_retries=max_retries, json_mode=False, telemetry_action=telemetry_action)
+
+    async def chat_json(self, messages, max_retries=3) -> dict[str, Any]:
+        """JSON 模式回复，返回解析后的 dict。"""
+        result = await self._chat_once(messages, max_retries=max_retries, json_mode=True, telemetry_action="chat_json")
+        return result if isinstance(result, dict) else {}
+
+    async def close(self):
+        await self._client.aclose()
+
+    async def _chat_once(self, messages, max_retries=3, json_mode=False, telemetry_action="chat"):
+        picked = self._pick_model()
+
+        for attempt in range(max_retries):
+            if attempt > 0:
+                picked = self._pick_model()
+
+            payload: dict[str, Any] = {
+                "model": picked,
+                "messages": messages,
+                "temperature": self.temperature,
+            }
+            if json_mode:
+                payload["response_format"] = {"type": "json_object"}
+
+            try:
+                resp = await self._client.post("/chat/completions", json=payload)
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    text = data["choices"][0]["message"]["content"] or ""
+
+                    self._report_tokens(messages, text, data, action=telemetry_action)
+
+                    if json_mode:
+                        try:
+                            return json.loads(text)
+                        except json.JSONDecodeError:
+                            if attempt < max_retries - 1:
+                                await asyncio.sleep(2 ** attempt)
+                                continue
+                            return {}
+
+                    return text
+                else:
+                    if 400 <= resp.status_code < 500:
+                        return {} if json_mode else ""
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(RETRY_BACKOFF_S * (2 ** attempt))
+                        continue
+                    return {} if json_mode else ""
+
+            except (httpx.TimeoutException, httpx.RequestError, httpx.HTTPError):
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(RETRY_BACKOFF_S * (2 ** attempt))
+                    continue
+                return {} if json_mode else ""
+
+        return {} if json_mode else ""
+
+    def _report_tokens(self, messages, text, response_data, action: str):
+        if self.monitor is None:
+            return
+        tokens, source = self._usage_tokens(response_data, messages, text)
+        self.monitor.report_tokens(
+            operator_id=self.operator_id or "",
+            action=action,
+            tokens=tokens,
+            source=source,
+        )
+
+    @staticmethod
+    def _usage_tokens(response_data, messages, text="") -> tuple[int, str]:
+        usage = response_data.get("usage") if isinstance(response_data, dict) else None
+        if usage is not None:
+            total_tokens = AliyunLLMClient._usage_field(usage, "total_tokens")
+            if total_tokens is not None:
+                return int(total_tokens), "reported"
+
+            prompt_tokens = AliyunLLMClient._usage_field(usage, "prompt_tokens")
+            completion_tokens = AliyunLLMClient._usage_field(usage, "completion_tokens")
+            if prompt_tokens is not None or completion_tokens is not None:
+                return int(prompt_tokens or 0) + int(completion_tokens or 0), "reported"
+
+        return AliyunLLMClient._estimate_tokens(messages, text), "estimated"

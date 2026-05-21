@@ -1,68 +1,433 @@
 {
   "edges": [
     {
-      "s": "quest_6",
-      "t": "quest_0",
-      "v": 0.40751822200536864
+      "s": "quest_0_ans_Carol_9",
+      "t": "quest_1",
+      "v": 1.0
     },
     {
-      "s": "dopp63",
-      "t": "quest_0",
-      "v": 0.706200601013684
+      "s": "quest_1_ans_Bob_0",
+      "t": "quest_1_ans_Bob_3",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_4",
+      "t": "quest_0_ans_Carol_5",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_0",
+      "t": "quest_1_ans_Bob_6",
+      "v": 1.0
     },
     {
       "s": "quest_0",
-      "t": "quest_3",
-      "v": 0.9572182225111628
+      "t": "quest_1_ans_Bob_5",
+      "v": 1.0
     },
     {
-      "s": "dopp63",
+      "s": "quest_0",
+      "t": "quest_0",
+      "v": 0.3427087861000725
+    },
+    {
+      "s": "quest_5",
       "t": "quest_1",
-      "v": 0.9387269774730207
+      "v": 0.3117383718409148
     },
     {
-      "s": "dopp63",
-      "t": "quest_2",
-      "v": 0.6699171368671436
-    },
-    {
-      "s": "dopp63",
-      "t": "dopp62",
+      "s": "quest_0_ans_Alice_0",
+      "t": "quest_0",
       "v": 1.0
     },
     {
-      "s": "quest_1_ans_Alice_1",
-      "t": "quest_4",
-      "v": 1.0
-    },
-    {
-      "s": "quest_1_ans_Alice_1",
-      "t": "dopp63",
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_0",
       "v": 1.0
     },
     {
       "s": "quest_1",
-      "t": "quest_4",
-      "v": 0.5259240307632171
+      "t": "quest_1_ans_Bob_3",
+      "v": 1.0
     },
     {
-      "s": "quest_6",
-      "t": "quest_0_ans_Bob_1",
+      "s": "quest_5",
+      "t": "quest_0_ans_Carol_11",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_0",
+      "t": "quest_0_ans_Carol_3",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1",
+      "t": "quest_1_ans_Bob_7",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_1",
+      "t": "quest_3",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_9",
+      "t": "quest_0_ans_Alice_1",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_3",
+      "t": "quest_3",
+      "v": 1.0
+    },
+    {
+      "s": "quest_3",
+      "t": "quest_0_ans_Alice_1",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Alice_10",
+      "v": 1.3065629648763766
+    },
+    {
+      "s": "quest_1",
+      "t": "quest_1_ans_Bob_4",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_1",
+      "t": "quest_3",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_4",
+      "v": 1.3065629648763766
+    },
+    {
+      "s": "quest_0_ans_Carol_5",
+      "t": "quest_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Alice_10",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_6",
+      "t": "dopp62",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_1",
+      "t": "quest_0_ans_Carol_9",
       "v": 1.0
     },
     {
       "s": "quest_0",
       "t": "quest_6",
-      "v": 0.7581417400039772
+      "v": 0.8135763982523465
     },
     {
-      "s": "quest_1",
-      "t": "quest_0_ans_Carol_0",
+      "s": "quest_1_ans_Bob_4",
+      "t": "quest_1_ans_Bob_5",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Alice_8",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_10",
+      "t": "quest_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_2",
+      "t": "quest_0_ans_Alice_10",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_13",
+      "v": 1.0
+    },
+    {
+      "s": "dopp62",
+      "t": "quest_0_ans_Alice_0",
       "v": 1.0
     },
     {
       "s": "quest_4",
+      "t": "quest_4",
+      "v": 0.8072404187303226
+    },
+    {
+      "s": "quest_1_ans_Alice_1",
+      "t": "quest_4",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_9",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_2",
+      "t": "quest_1_ans_Bob_4",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_4",
+      "t": "quest_1_ans_Bob_2",
+      "v": 1.0
+    },
+    {
+      "s": "dopp63",
+      "t": "quest_0_ans_Alice_6",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_7",
+      "t": "quest_1_ans_Bob_2",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_1",
+      "t": "quest_1",
+      "v": 0.364045031520522
+    },
+    {
+      "s": "quest_0_ans_Alice_1",
+      "t": "quest_1",
+      "v": 0.23150313469202333
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Alice_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_9",
+      "t": "quest_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_0",
+      "t": "quest_3",
+      "v": 0.9841208623110247
+    },
+    {
+      "s": "quest_3",
+      "t": "quest_1_ans_Bob_1",
+      "v": 1.0
+    },
+    {
+      "s": "quest_3",
+      "t": "quest_0",
+      "v": 0.26378065140381063
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Alice_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_0",
+      "t": "quest_3",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_7",
+      "t": "quest_0_ans_Alice_10",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_1_ans_Bob_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_0",
+      "t": "dopp62",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_0",
+      "t": "quest_1_ans_Bob_5",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_8",
+      "t": "quest_0_ans_Alice_7",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_0",
+      "t": "quest_1_ans_Bob_1",
+      "v": 1.0
+    },
+    {
+      "s": "quest_3",
+      "t": "quest_0",
+      "v": 0.3273809113847461
+    },
+    {
+      "s": "quest_1_ans_Bob_0",
+      "t": "quest_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_1",
+      "t": "quest_1_ans_Bob_2",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_3",
+      "t": "quest_1_ans_Bob_2",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_3",
+      "t": "quest_1_ans_Bob_6",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1",
+      "t": "quest_1_ans_Bob_2",
+      "v": 0.541196100146197
+    },
+    {
+      "s": "quest_1_ans_Bob_2",
+      "t": "quest_1_ans_Bob_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_5",
+      "v": 0.9704949459725568
+    },
+    {
+      "s": "quest_0_ans_Alice_7",
+      "t": "quest_0_ans_Carol_2",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_2",
+      "t": "quest_0_ans_Alice_7",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_11",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Alice_6",
+      "v": 0.541196100146197
+    },
+    {
+      "s": "quest_1_ans_Bob_2",
+      "t": "quest_1",
+      "v": 0.35238496033236766
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Alice_8",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_2",
+      "t": "quest_7",
+      "v": 0.7392952225140543
+    },
+    {
+      "s": "quest_0_ans_Carol_3",
+      "t": "quest_1_ans_Bob_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_7",
+      "t": "quest_0_ans_Carol_2",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_2",
+      "t": "quest_1_ans_Bob_3",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_10",
+      "t": "quest_0_ans_Carol_2",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_11",
+      "t": "quest_5",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_9",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_2",
+      "t": "dopp62",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_12",
+      "t": "quest_0_ans_Carol_4",
+      "v": 1.0
+    },
+    {
+      "s": "quest_3",
+      "t": "quest_1_ans_Bob_2",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1",
+      "t": "quest_0_ans_Carol_9",
+      "v": 1.0
+    },
+    {
+      "s": "quest_6",
+      "t": "quest_0_ans_Carol_13",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1",
       "t": "quest_1_ans_Alice_1",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1",
+      "t": "quest_1_ans_Bob_6",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_6",
+      "t": "dopp63",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_4",
+      "t": "quest_0_ans_Carol_12",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_2",
+      "t": "quest_0_ans_Alice_6",
+      "v": 1.0
+    },
+    {
+      "s": "dopp62",
+      "t": "quest_0_ans_Alice_6",
       "v": 1.0
     },
     {
@@ -71,28 +436,183 @@
       "v": 0.24144049701173692
     },
     {
+      "s": "quest_0_ans_Carol_2",
+      "t": "quest_0_ans_Carol_4",
+      "v": 1.0
+    },
+    {
+      "s": "dopp63",
+      "t": "dopp62",
+      "v": 0.541196100146197
+    },
+    {
+      "s": "quest_4",
+      "t": "quest_1_ans_Alice_1",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_2",
+      "t": "dopp63",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_1",
+      "t": "quest_0_ans_Carol_3",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_3",
+      "t": "quest_1_ans_Bob_7",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_5",
+      "t": "quest_0_ans_Carol_12",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_4",
+      "t": "quest_0_ans_Carol_2",
+      "v": 1.0
+    },
+    {
+      "s": "dopp62",
+      "t": "quest_0",
+      "v": 0.7367909665415016
+    },
+    {
+      "s": "quest_0_ans_Carol_11",
+      "t": "quest_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_3",
+      "t": "quest_0_ans_Alice_1",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_2",
+      "t": "quest_3",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_2",
+      "t": "quest_0_ans_Alice_7",
+      "v": 1.0
+    },
+    {
+      "s": "quest_3",
+      "t": "quest_1_ans_Bob_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_4",
+      "t": "quest_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_3",
+      "t": "quest_1_ans_Bob_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_13",
+      "t": "quest_6",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_1",
+      "t": "quest_1_ans_Bob_4",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_12",
+      "t": "quest_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_3",
+      "t": "quest_0_ans_Carol_3",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_8",
+      "t": "quest_0_ans_Alice_6",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Bob_1",
+      "t": "quest_6",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_3",
+      "t": "quest_3",
+      "v": 1.0
+    },
+    {
+      "s": "quest_5",
+      "t": "quest_0_ans_Carol_3",
+      "v": 1.0
+    },
+    {
+      "s": "dopp62",
+      "t": "quest_0_ans_Carol_2",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_5",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1",
+      "t": "quest_1_ans_Bob_1",
+      "v": 0.541196100146197
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_12",
+      "v": 1.0
+    },
+    {
       "s": "quest_0",
       "t": "quest_0_ans_Bob_1",
       "v": 1.0
     },
     {
-      "s": "quest_0_ans_Carol_0",
+      "s": "quest_1_ans_Alice_1",
+      "t": "quest_0_ans_Carol_2",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_1",
+      "t": "quest_1_ans_Bob_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_12",
+      "t": "quest_0_ans_Carol_5",
+      "v": 1.0
+    },
+    {
+      "s": "dopp62",
+      "t": "quest_1",
+      "v": 0.35040402633848206
+    },
+    {
+      "s": "quest_0_ans_Alice_7",
+      "t": "quest_0_ans_Alice_6",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_7",
       "t": "quest_1",
       "v": 1.0
     },
     {
-      "s": "quest_0_ans_Carol_0",
-      "t": "quest_7",
-      "v": 0.8342543971447621
-    },
-    {
-      "s": "dopp63",
-      "t": "quest_1_ans_Alice_1",
-      "v": 1.0
-    },
-    {
-      "s": "quest_1",
-      "t": "quest_1_ans_Alice_1",
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_12",
       "v": 1.0
     },
     {
@@ -101,18 +621,303 @@
       "v": 0.541196100146197
     },
     {
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_4",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1",
+      "t": "quest_1_ans_Bob_7",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_2",
+      "t": "quest_1_ans_Bob_1",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_3",
+      "v": 0.541196100146197
+    },
+    {
+      "s": "quest_0_ans_Carol_3",
+      "t": "quest_5",
+      "v": 1.0
+    },
+    {
+      "s": "quest_6",
+      "t": "quest_0",
+      "v": 0.40038406493062906
+    },
+    {
+      "s": "quest_6",
+      "t": "quest_0",
+      "v": 0.40751822200536864
+    },
+    {
+      "s": "quest_1_ans_Bob_7",
+      "t": "quest_1_ans_Bob_3",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_10",
+      "t": "quest_0_ans_Alice_7",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Alice_1",
+      "t": "dopp63",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_5",
+      "t": "quest_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_6",
+      "t": "quest_1_ans_Bob_3",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_0",
+      "t": "quest_7",
+      "v": 0.8342543971447621
+    },
+    {
+      "s": "quest_1_ans_Bob_5",
+      "t": "quest_1_ans_Bob_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_6",
+      "t": "quest_1_ans_Bob_0",
+      "v": 1.0
+    },
+    {
+      "s": "dopp63",
+      "t": "quest_0",
+      "v": 0.706200601013684
+    },
+    {
+      "s": "quest_1_ans_Alice_1",
+      "t": "quest_0_ans_Carol_4",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_4",
+      "t": "quest_1_ans_Bob_1",
+      "v": 1.0
+    },
+    {
+      "s": "dopp62",
+      "t": "quest_0",
+      "v": 0.2525334208704079
+    },
+    {
+      "s": "dopp63",
+      "t": "quest_1",
+      "v": 0.9387269774730207
+    },
+    {
+      "s": "quest_0_ans_Alice_7",
+      "t": "quest_0_ans_Alice_8",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_0",
+      "t": "quest_1_ans_Bob_4",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1",
+      "t": "quest_1_ans_Bob_5",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_0",
+      "t": "quest_1",
+      "v": 1.0
+    },
+    {
+      "s": "quest_6",
+      "t": "quest_0_ans_Bob_1",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_5",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1",
+      "t": "quest_4",
+      "v": 0.5259240307632171
+    },
+    {
+      "s": "quest_0_ans_Carol_5",
+      "t": "quest_0_ans_Carol_4",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_6",
+      "t": "quest_0_ans_Alice_8",
+      "v": 1.0
+    },
+    {
       "s": "quest_3",
       "t": "quest_5",
       "v": 0.864289410822838
     },
     {
       "s": "quest_0",
+      "t": "quest_0_ans_Alice_1",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_8",
+      "t": "quest_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_3",
+      "v": 0.9572182225111628
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Alice_7",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1",
+      "t": "quest_1_ans_Bob_6",
+      "v": 1.0
+    },
+    {
+      "s": "dopp63",
+      "t": "quest_1_ans_Alice_1",
+      "v": 1.3065629648763766
+    },
+    {
+      "s": "quest_0_ans_Alice_6",
+      "t": "quest_0_ans_Alice_7",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_5",
+      "t": "quest_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_6",
+      "t": "quest_1",
+      "v": 1.0
+    },
+    {
+      "s": "dopp63",
+      "t": "quest_2",
+      "v": 0.6699171368671436
+    },
+    {
+      "s": "quest_1_ans_Bob_2",
+      "t": "quest_1_ans_Bob_7",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1",
       "t": "quest_0_ans_Carol_0",
       "v": 1.0
     },
     {
-      "s": "quest_0_ans_Bob_1",
+      "s": "quest_1_ans_Bob_5",
+      "t": "quest_1_ans_Bob_4",
+      "v": 1.0
+    },
+    {
+      "s": "dopp62",
+      "t": "quest_1",
+      "v": 0.9331454088148035
+    },
+    {
+      "s": "quest_3",
+      "t": "quest_1_ans_Bob_3",
+      "v": 1.0
+    },
+    {
+      "s": "dopp63",
+      "t": "quest_0_ans_Carol_2",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1",
+      "t": "quest_1_ans_Bob_0",
+      "v": 1.3065629648763766
+    },
+    {
+      "s": "quest_2",
+      "t": "quest_0",
+      "v": 0.3197681620364298
+    },
+    {
+      "s": "quest_0",
       "t": "quest_6",
+      "v": 0.7581417400039772
+    },
+    {
+      "s": "quest_1_ans_Bob_0",
+      "t": "quest_1_ans_Bob_2",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_5",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_11",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Alice_6",
+      "t": "quest_0_ans_Carol_2",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_4",
+      "t": "quest_1_ans_Bob_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_2",
+      "v": 0.6282142527041619
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_0_ans_Carol_2",
+      "v": 1.0
+    },
+    {
+      "s": "quest_1_ans_Bob_1",
+      "t": "quest_0",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0",
+      "t": "quest_1_ans_Bob_1",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_4",
+      "t": "quest_1_ans_Alice_1",
+      "v": 1.0
+    },
+    {
+      "s": "quest_0_ans_Carol_2",
+      "t": "quest_1_ans_Alice_1",
       "v": 1.0
     }
   ]

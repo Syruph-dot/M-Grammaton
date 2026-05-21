@@ -1,0 +1,1547 @@
+{
+  "nodes": {
+    "quest_0_ans_Carol_4": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Carol_4",
+        "kind": "answer",
+        "title": "quest_0_ans_Carol_4",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Carol",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 4,
+          "answerer_id": "Carol",
+          "node_names": [
+            "quest_0",
+            "quest_0_ans_Carol_2",
+            "quest_1_ans_Alice_1"
+          ],
+          "edge_refs": [
+            [
+              "quest_0",
+              "quest_0_ans_Carol_2"
+            ],
+            [
+              "quest_0_ans_Carol_2",
+              "quest_1_ans_Alice_1"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_0",
+              "mode": "full",
+              "content_hash": "78a3219fb60db44b55d9741dff3e2cc31e52da3a5d74299de309902c5b29be6b",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_0_ans_Carol_2",
+              "mode": "full",
+              "content_hash": "3ec55b712526c002a43c71ea5d48aa94c8f2acf1ed4d8f6e976742e4bb05b3b0",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_1_ans_Alice_1",
+              "mode": "full",
+              "content_hash": "dbe433832a36a153898d0e133901488eea1441b50863691fa8f3c3d05451419d",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": [
+          [
+            true,
+            "quest_0_ans_Carol_5"
+          ]
+        ]
+      }
+    },
+    "quest_3": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_3",
+        "kind": "quest",
+        "title": "quest_3",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "quester_id": "Alice",
+        "depth": 0,
+        "parent_quest": null,
+        "stk": [
+          [
+            false,
+            "quest_0"
+          ]
+        ]
+      }
+    },
+    "quest_0_ans_Alice_0": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Alice_0",
+        "kind": "answer",
+        "title": "quest_0_ans_Alice_0",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Alice",
+        "quest_name": "quest_0",
+        "match_score": 85.0,
+        "novelty_score": 70.0,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 0,
+          "answerer_id": "Alice",
+          "node_names": [
+            "dopp62",
+            "quest_0"
+          ],
+          "edge_refs": [
+            [
+              "dopp62",
+              "quest_0"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": true,
+          "materials": [
+            {
+              "node": "dopp62",
+              "mode": "full",
+              "content_hash": "8a8b87712044f290e5984cd29183b47337372e20b8d584f4c1e36bd3af94c374",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_0",
+              "mode": "full",
+              "content_hash": "78a3219fb60db44b55d9741dff3e2cc31e52da3a5d74299de309902c5b29be6b",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": [
+          [
+            false,
+            "dopp62"
+          ]
+        ]
+      }
+    },
+    "quest_0_ans_Carol_11": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Carol_11",
+        "kind": "answer",
+        "title": "quest_0_ans_Carol_11",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Carol",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 11,
+          "answerer_id": "Carol",
+          "node_names": [
+            "quest_0",
+            "quest_5"
+          ],
+          "edge_refs": [
+            [
+              "quest_0",
+              "quest_5"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_0",
+              "mode": "full",
+              "content_hash": "78a3219fb60db44b55d9741dff3e2cc31e52da3a5d74299de309902c5b29be6b",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_5",
+              "mode": "full",
+              "content_hash": "fcd3732b810768cbbd6f55247abdd484b15fbb9e6c4977b43bda4b48db325e6f",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "quest_0_ans_Carol_9": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Carol_9",
+        "kind": "answer",
+        "title": "quest_0_ans_Carol_9",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Carol",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 9,
+          "answerer_id": "Carol",
+          "node_names": [
+            "quest_0",
+            "quest_0_ans_Alice_1",
+            "quest_1"
+          ],
+          "edge_refs": [
+            [
+              "quest_0",
+              "quest_0_ans_Alice_1"
+            ],
+            [
+              "quest_0_ans_Alice_1",
+              "quest_1"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_0",
+              "mode": "full",
+              "content_hash": "78a3219fb60db44b55d9741dff3e2cc31e52da3a5d74299de309902c5b29be6b",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_0_ans_Alice_1",
+              "mode": "full",
+              "content_hash": "7d5556d0350f32c52e82b3d0b2ce7001a0d41c3ad0488686987f927224df7a87",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_1",
+              "mode": "full",
+              "content_hash": "cd69d9ec7593486525fd623a3160ffc821a7e64ed22b83af2b4aabaed305ff55",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "quest_5": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_5",
+        "kind": "quest",
+        "title": "quest_5",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "quester_id": "Alice",
+        "depth": 0,
+        "parent_quest": null,
+        "stk": []
+      }
+    },
+    "quest_1_ans_Bob_5": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_1_ans_Bob_5",
+        "kind": "answer",
+        "title": "quest_1_ans_Bob_5",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Bob",
+        "quest_name": "quest_1",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_1",
+          "answer_index": 5,
+          "answerer_id": "Bob",
+          "node_names": [
+            "quest_1_ans_Bob_4",
+            "quest_1_ans_Bob_0",
+            "quest_0"
+          ],
+          "edge_refs": [
+            [
+              "quest_1_ans_Bob_4",
+              "quest_1_ans_Bob_0"
+            ],
+            [
+              "quest_1_ans_Bob_0",
+              "quest_0"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_0",
+              "mode": "full",
+              "content_hash": "826dff03bee99035fc477cc01c80ee4fbe47a0c631d63f302b9e8fd1d739573c",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "dopp63": {
+      "storage": "human",
+      "content_ref": "human/dopp63.md",
+      "frontmatter": {
+        "name": "dopp63",
+        "kind": "document",
+        "title": "材料B",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {
+          "author": "ZUN",
+          "hash": 0,
+          "abstract": 0,
+          "llm_summary": {
+            "text": "公主寻仙药，异人闯神社；鸦叼蓝眼娃娃，雨停断首；西屋少女似母，魔幻世道渐失真。",
+            "model": "",
+            "content_hash": "f4b3246929f82db39742c9852f4d93f3123b90e22e0379e1fc11d1d609cdb611",
+            "updated_at": 1779371269.6022954
+          }
+        },
+        "stk": []
+      }
+    },
+    "quest_0_ans_Alice_7": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Alice_7",
+        "kind": "answer",
+        "title": "quest_0_ans_Alice_7",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Alice",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 7,
+          "answerer_id": "Alice",
+          "node_names": [
+            "quest_0_ans_Carol_2",
+            "quest_0_ans_Alice_6",
+            "quest_0_ans_Carol_2"
+          ],
+          "edge_refs": [
+            [
+              "quest_0_ans_Carol_2",
+              "quest_0_ans_Alice_6"
+            ],
+            [
+              "quest_0_ans_Alice_6",
+              "quest_0_ans_Carol_2"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_0_ans_Carol_2",
+              "mode": "full",
+              "content_hash": "3ec55b712526c002a43c71ea5d48aa94c8f2acf1ed4d8f6e976742e4bb05b3b0",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_0_ans_Carol_2",
+              "mode": "full",
+              "content_hash": "3ec55b712526c002a43c71ea5d48aa94c8f2acf1ed4d8f6e976742e4bb05b3b0",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "quest_7": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_7",
+        "kind": "quest",
+        "title": "quest_7",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "quester_id": "Carol",
+        "depth": 0,
+        "parent_quest": null,
+        "stk": []
+      }
+    },
+    "quest_0_ans_Carol_12": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Carol_12",
+        "kind": "answer",
+        "title": "quest_0_ans_Carol_12",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Carol",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 12,
+          "answerer_id": "Carol",
+          "node_names": [
+            "quest_0",
+            "quest_0_ans_Carol_4",
+            "quest_0_ans_Carol_5"
+          ],
+          "edge_refs": [
+            [
+              "quest_0",
+              "quest_0_ans_Carol_4"
+            ],
+            [
+              "quest_0_ans_Carol_4",
+              "quest_0_ans_Carol_5"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_0",
+              "mode": "full",
+              "content_hash": "78a3219fb60db44b55d9741dff3e2cc31e52da3a5d74299de309902c5b29be6b",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_0_ans_Carol_4",
+              "mode": "full",
+              "content_hash": "40f5ab9f825259b1a18f05b8ad91d441a0ce51f6d1ca671465ba3c1f4977f945",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_0_ans_Carol_5",
+              "mode": "full",
+              "content_hash": "e3e5c23d3108f5c0e6426d82e623f1f7eb1feb9ff0909f0b12b352e93bad0e0d",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "quest_4": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_4",
+        "kind": "quest",
+        "title": "quest_4",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "quester_id": "Bob",
+        "depth": 0,
+        "parent_quest": null,
+        "stk": []
+      }
+    },
+    "quest_0_ans_Carol_3": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Carol_3",
+        "kind": "answer",
+        "title": "quest_0_ans_Carol_3",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Carol",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 3,
+          "answerer_id": "Carol",
+          "node_names": [
+            "quest_0_ans_Alice_1",
+            "quest_3",
+            "quest_5"
+          ],
+          "edge_refs": [
+            [
+              "quest_0_ans_Alice_1",
+              "quest_3"
+            ],
+            [
+              "quest_3",
+              "quest_5"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_0_ans_Alice_1",
+              "mode": "full",
+              "content_hash": "7d5556d0350f32c52e82b3d0b2ce7001a0d41c3ad0488686987f927224df7a87",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_3",
+              "mode": "full",
+              "content_hash": "826dff03bee99035fc477cc01c80ee4fbe47a0c631d63f302b9e8fd1d739573c",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_5",
+              "mode": "full",
+              "content_hash": "ea56b2ab03f6332eb7eb3f351d9fdf405a7dc0f0e373e0c17c428141a06aad79",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "quest_1_ans_Bob_2": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_1_ans_Bob_2",
+        "kind": "answer",
+        "title": "quest_1_ans_Bob_2",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Bob",
+        "quest_name": "quest_1",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_1",
+          "answer_index": 2,
+          "answerer_id": "Bob",
+          "node_names": [
+            "quest_1_ans_Bob_1",
+            "quest_1_ans_Bob_0",
+            "quest_3"
+          ],
+          "edge_refs": [
+            [
+              "quest_1_ans_Bob_1",
+              "quest_1_ans_Bob_0"
+            ],
+            [
+              "quest_1_ans_Bob_0",
+              "quest_3"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_1_ans_Bob_1",
+              "mode": "full",
+              "content_hash": "654641e2e3ce3c008831f7746c93db06a4705c6610310983c5622ea5e96a9bd9",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_3",
+              "mode": "full",
+              "content_hash": "826dff03bee99035fc477cc01c80ee4fbe47a0c631d63f302b9e8fd1d739573c",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": [
+          [
+            true,
+            "quest_3"
+          ]
+        ]
+      }
+    },
+    "quest_2": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_2",
+        "kind": "quest",
+        "title": "quest_2",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "quester_id": "Bob",
+        "depth": 0,
+        "parent_quest": null,
+        "stk": []
+      }
+    },
+    "quest_6": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_6",
+        "kind": "quest",
+        "title": "quest_6",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "quester_id": "Bob",
+        "depth": 0,
+        "parent_quest": null,
+        "stk": [
+          [
+            false,
+            "quest_0"
+          ]
+        ]
+      }
+    },
+    "quest_0_ans_Carol_0": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Carol_0",
+        "kind": "answer",
+        "title": "quest_0_ans_Carol_0",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Carol",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 0,
+          "answerer_id": "Carol",
+          "node_names": [
+            "quest_1"
+          ],
+          "edge_refs": [],
+          "score": null,
+          "feedback_applied": false,
+          "materials": []
+        },
+        "stk": []
+      }
+    },
+    "quest_1_ans_Bob_3": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_1_ans_Bob_3",
+        "kind": "answer",
+        "title": "quest_1_ans_Bob_3",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Bob",
+        "quest_name": "quest_1",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_1",
+          "answer_index": 3,
+          "answerer_id": "Bob",
+          "node_names": [
+            "quest_3",
+            "quest_1_ans_Bob_0",
+            "quest_1_ans_Bob_2"
+          ],
+          "edge_refs": [
+            [
+              "quest_3",
+              "quest_1_ans_Bob_0"
+            ],
+            [
+              "quest_1_ans_Bob_0",
+              "quest_1_ans_Bob_2"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_3",
+              "mode": "full",
+              "content_hash": "826dff03bee99035fc477cc01c80ee4fbe47a0c631d63f302b9e8fd1d739573c",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "quest_1_ans_Bob_4": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_1_ans_Bob_4",
+        "kind": "answer",
+        "title": "quest_1_ans_Bob_4",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Bob",
+        "quest_name": "quest_1",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_1",
+          "answer_index": 4,
+          "answerer_id": "Bob",
+          "node_names": [
+            "quest_1_ans_Bob_2",
+            "quest_1_ans_Bob_1",
+            "quest_1_ans_Bob_0"
+          ],
+          "edge_refs": [
+            [
+              "quest_1_ans_Bob_2",
+              "quest_1_ans_Bob_1"
+            ],
+            [
+              "quest_1_ans_Bob_1",
+              "quest_1_ans_Bob_0"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_1_ans_Bob_1",
+              "mode": "full",
+              "content_hash": "654641e2e3ce3c008831f7746c93db06a4705c6610310983c5622ea5e96a9bd9",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "quest_1_ans_Bob_0": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_1_ans_Bob_0",
+        "kind": "answer",
+        "title": "quest_1_ans_Bob_0",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Bob",
+        "quest_name": "quest_1",
+        "match_score": 50.0,
+        "novelty_score": 50.0,
+        "trace": {
+          "quest_name": "quest_1",
+          "answer_index": 0,
+          "answerer_id": "Bob",
+          "node_names": [
+            "quest_3",
+            "quest_0",
+            "quest_0_ans_Carol_3"
+          ],
+          "edge_refs": [
+            [
+              "quest_3",
+              "quest_0"
+            ],
+            [
+              "quest_0",
+              "quest_0_ans_Carol_3"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": true,
+          "materials": [
+            {
+              "node": "quest_3",
+              "mode": "full",
+              "content_hash": "69c8b2b8d381774b1ff4db4ce641ac43a5be9b56229e591b0c735c213bcc4e43",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_0",
+              "mode": "full",
+              "content_hash": "78a3219fb60db44b55d9741dff3e2cc31e52da3a5d74299de309902c5b29be6b",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "quest_0": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0",
+        "kind": "quest",
+        "title": "quest_0",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "quester_id": "Alice",
+        "depth": 0,
+        "parent_quest": null,
+        "stk": [
+          [
+            true,
+            "quest_0_ans_Carol_0"
+          ],
+          [
+            true,
+            "quest_0_ans_Carol_0"
+          ]
+        ]
+      }
+    },
+    "quest_0_ans_Carol_5": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Carol_5",
+        "kind": "answer",
+        "title": "quest_0_ans_Carol_5",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Carol",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 5,
+          "answerer_id": "Carol",
+          "node_names": [
+            "quest_0",
+            "quest_0_ans_Carol_4",
+            "quest_0"
+          ],
+          "edge_refs": [
+            [
+              "quest_0",
+              "quest_0_ans_Carol_4"
+            ],
+            [
+              "quest_0_ans_Carol_4",
+              "quest_0"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_0",
+              "mode": "full",
+              "content_hash": "78a3219fb60db44b55d9741dff3e2cc31e52da3a5d74299de309902c5b29be6b",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_0_ans_Carol_4",
+              "mode": "full",
+              "content_hash": "40f5ab9f825259b1a18f05b8ad91d441a0ce51f6d1ca671465ba3c1f4977f945",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_0",
+              "mode": "full",
+              "content_hash": "826dff03bee99035fc477cc01c80ee4fbe47a0c631d63f302b9e8fd1d739573c",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": [
+          [
+            true,
+            "quest_0_ans_Carol_12"
+          ]
+        ]
+      }
+    },
+    "quest_0_ans_Alice_1": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Alice_1",
+        "kind": "answer",
+        "title": "quest_0_ans_Alice_1",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Alice",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 1,
+          "answerer_id": "Alice",
+          "node_names": [
+            "quest_3"
+          ],
+          "edge_refs": [],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_3",
+              "mode": "full",
+              "content_hash": "69c8b2b8d381774b1ff4db4ce641ac43a5be9b56229e591b0c735c213bcc4e43",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "quest_0_ans_Alice_6": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Alice_6",
+        "kind": "answer",
+        "title": "quest_0_ans_Alice_6",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Alice",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 6,
+          "answerer_id": "Alice",
+          "node_names": [
+            "dopp63",
+            "quest_0_ans_Carol_2",
+            "dopp62"
+          ],
+          "edge_refs": [
+            [
+              "dopp63",
+              "quest_0_ans_Carol_2"
+            ],
+            [
+              "quest_0_ans_Carol_2",
+              "dopp62"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "dopp63",
+              "mode": "summary",
+              "content_hash": "f4b3246929f82db39742c9852f4d93f3123b90e22e0379e1fc11d1d609cdb611",
+              "summary_hash": "9666cc47b0358d6264108112f3653405b3663e47b582cbd97a7108cec35e26bb"
+            },
+            {
+              "node": "quest_0_ans_Carol_2",
+              "mode": "full",
+              "content_hash": "3ec55b712526c002a43c71ea5d48aa94c8f2acf1ed4d8f6e976742e4bb05b3b0",
+              "summary_hash": null
+            },
+            {
+              "node": "dopp62",
+              "mode": "full",
+              "content_hash": "8a8b87712044f290e5984cd29183b47337372e20b8d584f4c1e36bd3af94c374",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": [
+          [
+            true,
+            "quest_0_ans_Carol_2"
+          ]
+        ]
+      }
+    },
+    "quest_0_ans_Bob_1": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Bob_1",
+        "kind": "answer",
+        "title": "quest_0_ans_Bob_1",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Bob",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 1,
+          "answerer_id": "Bob",
+          "node_names": [
+            "quest_6"
+          ],
+          "edge_refs": [],
+          "score": null,
+          "feedback_applied": false,
+          "materials": []
+        },
+        "stk": []
+      }
+    },
+    "quest_0_ans_Alice_8": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Alice_8",
+        "kind": "answer",
+        "title": "quest_0_ans_Alice_8",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Alice",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 8,
+          "answerer_id": "Alice",
+          "node_names": [
+            "quest_0",
+            "quest_0_ans_Alice_7",
+            "quest_0_ans_Alice_6"
+          ],
+          "edge_refs": [
+            [
+              "quest_0",
+              "quest_0_ans_Alice_7"
+            ],
+            [
+              "quest_0_ans_Alice_7",
+              "quest_0_ans_Alice_6"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_0",
+              "mode": "full",
+              "content_hash": "78a3219fb60db44b55d9741dff3e2cc31e52da3a5d74299de309902c5b29be6b",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "quest_1_ans_Bob_1": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_1_ans_Bob_1",
+        "kind": "answer",
+        "title": "quest_1_ans_Bob_1",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Bob",
+        "quest_name": "quest_1",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_1",
+          "answer_index": 1,
+          "answerer_id": "Bob",
+          "node_names": [
+            "quest_1_ans_Bob_0",
+            "quest_0",
+            "quest_3"
+          ],
+          "edge_refs": [
+            [
+              "quest_1_ans_Bob_0",
+              "quest_0"
+            ],
+            [
+              "quest_0",
+              "quest_3"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_0",
+              "mode": "full",
+              "content_hash": "826dff03bee99035fc477cc01c80ee4fbe47a0c631d63f302b9e8fd1d739573c",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_3",
+              "mode": "full",
+              "content_hash": "826dff03bee99035fc477cc01c80ee4fbe47a0c631d63f302b9e8fd1d739573c",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "quest_1_ans_Bob_6": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_1_ans_Bob_6",
+        "kind": "answer",
+        "title": "quest_1_ans_Bob_6",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Bob",
+        "quest_name": "quest_1",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_1",
+          "answer_index": 6,
+          "answerer_id": "Bob",
+          "node_names": [
+            "quest_1",
+            "quest_1_ans_Bob_3",
+            "quest_1_ans_Bob_0"
+          ],
+          "edge_refs": [
+            [
+              "quest_1",
+              "quest_1_ans_Bob_3"
+            ],
+            [
+              "quest_1_ans_Bob_3",
+              "quest_1_ans_Bob_0"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_1",
+              "mode": "full",
+              "content_hash": "cd69d9ec7593486525fd623a3160ffc821a7e64ed22b83af2b4aabaed305ff55",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_1_ans_Bob_3",
+              "mode": "full",
+              "content_hash": "e169b1dd2619d1a39b3691fc976e7acd88e92155f60e7044e748412447e5fcb1",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "quest_1": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_1",
+        "kind": "quest",
+        "title": "quest_1",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "quester_id": "Bob",
+        "depth": 0,
+        "parent_quest": null,
+        "stk": []
+      }
+    },
+    "quest_1_ans_Bob_7": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_1_ans_Bob_7",
+        "kind": "answer",
+        "title": "quest_1_ans_Bob_7",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Bob",
+        "quest_name": "quest_1",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_1",
+          "answer_index": 7,
+          "answerer_id": "Bob",
+          "node_names": [
+            "quest_1",
+            "quest_1_ans_Bob_3",
+            "quest_1_ans_Bob_2"
+          ],
+          "edge_refs": [
+            [
+              "quest_1",
+              "quest_1_ans_Bob_3"
+            ],
+            [
+              "quest_1_ans_Bob_3",
+              "quest_1_ans_Bob_2"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_1",
+              "mode": "full",
+              "content_hash": "cd69d9ec7593486525fd623a3160ffc821a7e64ed22b83af2b4aabaed305ff55",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_1_ans_Bob_3",
+              "mode": "full",
+              "content_hash": "e169b1dd2619d1a39b3691fc976e7acd88e92155f60e7044e748412447e5fcb1",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "quest_0_ans_Carol_13": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Carol_13",
+        "kind": "answer",
+        "title": "quest_0_ans_Carol_13",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Carol",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 13,
+          "answerer_id": "Carol",
+          "node_names": [
+            "quest_6"
+          ],
+          "edge_refs": [],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_6",
+              "mode": "full",
+              "content_hash": "e9608ee2c81a81afae5ab0d2f55559e2b7b1f7a75726b11971e38527411a6c4e",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    },
+    "quest_0_ans_Alice_10": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Alice_10",
+        "kind": "answer",
+        "title": "quest_0_ans_Alice_10",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Alice",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 10,
+          "answerer_id": "Alice",
+          "node_names": [
+            "quest_0",
+            "quest_0_ans_Carol_2",
+            "quest_0_ans_Alice_7"
+          ],
+          "edge_refs": [
+            [
+              "quest_0",
+              "quest_0_ans_Carol_2"
+            ],
+            [
+              "quest_0_ans_Carol_2",
+              "quest_0_ans_Alice_7"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "quest_0",
+              "mode": "full",
+              "content_hash": "78a3219fb60db44b55d9741dff3e2cc31e52da3a5d74299de309902c5b29be6b",
+              "summary_hash": null
+            },
+            {
+              "node": "quest_0_ans_Carol_2",
+              "mode": "full",
+              "content_hash": "3ec55b712526c002a43c71ea5d48aa94c8f2acf1ed4d8f6e976742e4bb05b3b0",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": [
+          [
+            false,
+            "quest_0_ans_Carol_2"
+          ]
+        ]
+      }
+    },
+    "quest_1_ans_Alice_1": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_1_ans_Alice_1",
+        "kind": "answer",
+        "title": "quest_1_ans_Alice_1",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Alice",
+        "quest_name": "quest_1",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_1",
+          "answer_index": 1,
+          "answerer_id": "Alice",
+          "node_names": [
+            "dopp63",
+            "quest_1",
+            "quest_4"
+          ],
+          "edge_refs": [
+            [
+              "dopp63",
+              "quest_1"
+            ],
+            [
+              "quest_1",
+              "quest_4"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": []
+        },
+        "stk": [
+          [
+            false,
+            "quest_4"
+          ]
+        ]
+      }
+    },
+    "dopp62": {
+      "storage": "human",
+      "content_ref": "human/dopp62.md",
+      "frontmatter": {
+        "name": "dopp62",
+        "kind": "document",
+        "title": "材料A",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {
+          "author": "ZUN",
+          "hash": 0,
+          "abstract": 0,
+          "llm_summary": {
+            "text": "八名诚实人迁入幻想乡，遭小丑作祟离奇死亡。最终全员覆灭，七具尸体被妖怪运走，仅视作人口变动。",
+            "model": "",
+            "content_hash": "8a8b87712044f290e5984cd29183b47337372e20b8d584f4c1e36bd3af94c374",
+            "updated_at": 1779371267.7718112
+          }
+        },
+        "stk": [
+          [
+            false,
+            "quest_0"
+          ]
+        ]
+      }
+    },
+    "quest_0_ans_Carol_2": {
+      "storage": "operator",
+      "frontmatter": {
+        "name": "quest_0_ans_Carol_2",
+        "kind": "answer",
+        "title": "quest_0_ans_Carol_2",
+        "tags": [],
+        "t_read": 0.0,
+        "t_write": 0.0,
+        "t_lp": 0.0,
+        "parent": null,
+        "metadata": {},
+        "answerer_id": "Carol",
+        "quest_name": "quest_0",
+        "match_score": null,
+        "novelty_score": null,
+        "trace": {
+          "quest_name": "quest_0",
+          "answer_index": 2,
+          "answerer_id": "Carol",
+          "node_names": [
+            "dopp62",
+            "dopp63",
+            "quest_1_ans_Alice_1"
+          ],
+          "edge_refs": [
+            [
+              "dopp62",
+              "dopp63"
+            ],
+            [
+              "dopp63",
+              "quest_1_ans_Alice_1"
+            ]
+          ],
+          "score": null,
+          "feedback_applied": false,
+          "materials": [
+            {
+              "node": "dopp62",
+              "mode": "full",
+              "content_hash": "8a8b87712044f290e5984cd29183b47337372e20b8d584f4c1e36bd3af94c374",
+              "summary_hash": null
+            },
+            {
+              "node": "dopp63",
+              "mode": "summary",
+              "content_hash": "f4b3246929f82db39742c9852f4d93f3123b90e22e0379e1fc11d1d609cdb611",
+              "summary_hash": "664d43e3aa8c6a29739574e14407f76a19f20711145ca3dd7a268cd5356656e6"
+            },
+            {
+              "node": "quest_1_ans_Alice_1",
+              "mode": "full",
+              "content_hash": "dbe433832a36a153898d0e133901488eea1441b50863691fa8f3c3d05451419d",
+              "summary_hash": null
+            }
+          ]
+        },
+        "stk": []
+      }
+    }
+  }
+}
