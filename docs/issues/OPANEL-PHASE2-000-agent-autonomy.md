@@ -174,15 +174,23 @@ The EnhancedDecider should not only choose actions. It must report why:
 ```json
 {
   "actor_id": "Alice",
-  "chosen": "search",
-  "weights": {
+  "temperature": 0.3,
+  "chosen": "search_web",
+  "raw_scores": {
     "wander": 0.2,
     "answer": 0.7,
-    "search": 1.4
+    "search_web": 1.4,
+    "idle": 0.1
+  },
+  "probabilities": {
+    "wander": 0.08,
+    "answer": 0.18,
+    "search_web": 0.74,
+    "idle": 0.02
   },
   "top_signals": [
-    {"name": "current_node_low_outdegree", "action": "search", "delta": 0.6},
-    {"name": "message_pending", "action": "answer_message", "delta": 0.4}
+    {"name": "current_node_low_outdegree", "action": "search_web", "delta": 0.6},
+    {"name": "message_pending", "action": "reply_to_message", "delta": 0.4}
   ]
 }
 ```
@@ -243,10 +251,12 @@ Operator can perform the same primitive operations defined by OPANEL-MVP:
 - select message;
 - mark message done;
 - soft-delete message;
-- commit note artifact;
+- commit note artifact;  (deferred to Phase 3)
 - commit reply artifact.
 
-These operations must update the same `ActorPanelState` structures used by User Actor.
+These operations must update the same `ActorPanel` structures used by User Actor.
+
+Implementation strategy: extract a shared `ActorPanel` component from MVP's `UserActor`, then have both `UserActor` and `AsyncOperator` hold their own `ActorPanel` instance. This avoids forking the data model and keeps the isomorphism principle intact.
 
 ### FR2: Tool Registry
 
@@ -256,10 +266,10 @@ Introduce a registry for Operator-executable tools. Initial tools:
 |---|---|---:|---:|
 | `stash_current` | Add current node to actor stash | No | No |
 | `send_message` | Create an `actor_message` artifact and enqueue it for recipients | Yes | Optional |
-| `create_note` | Create note artifact on current node | Yes | Optional |
+| `create_note` | Create note artifact on current node | Yes | Optional | *(deferred to Phase 3)* |
 | `create_reply` | Reply to selected message or quest | Yes | Optional |
 | `search_web` | Import external evidence nodes | Yes | Optional query drafting |
-| `write_search_report` | Create an essay-style summary and reflection from search snippets | Yes | Yes |
+| `write_search_report` | Built-in post-step of `search_web`, not a standalone Decider action | Yes | Yes |
 | `fetch_web_page` | Fetch full content for a previously imported web evidence node | Yes | No |
 | `read_stash` | Return stash context | No | No |
 
@@ -322,9 +332,10 @@ It should support:
 
 - base action weights;
 - pluggable signal sources;
+- **softmax + temperature sampling**: temperature → 0 is deterministic, temperature → ∞ approximates uniform RandomDecider;
 - cooldown and budget signals;
 - repeat-action penalty;
-- decision trace emission.
+- decision trace emission (raw_scores + softmax probabilities).
 
 Initial signal sources:
 
@@ -367,11 +378,13 @@ Add configuration for:
     "blocked_domains": []
   },
   "autonomy": {
-    "token_budget_per_hour": 20000,
-    "max_repeated_action": 3
+    "max_repeated_action": 3,
+    "decider_temperature": 0.3
   }
 }
 ```
+
+Token budget 由全局 `RequestPool`（15s 滑动窗口 / 250K tokens）天然提供，不另设 per-hour 计数器。`BudgetSignal` 取 `pool.used_tokens / pool.token_budget` 做全域衰减因子。
 
 Defaults must keep tests offline and deterministic.
 
@@ -399,37 +412,75 @@ Defaults must keep tests offline and deterministic.
 
 ## Implementation Slices
 
-### OPANEL-PHASE2-001: Operator Primitive Parity
+### Dependency Map
 
-Give `AsyncOperator` access to the same stash/message/note/reply primitives as User Actor and prove panel state updates through the shared structures.
+```
+Slice-003 (Actor Panel) ─────────────────┐
+Slice-005 (EnhancedDecider) ────────────┐├→ Slice-002 (Actor Message)
+Slice-008 (Search Backend Abstraction) ─┼┤
+Slice-001 (Web Search Primitive) ───────┘┤
+                                         ├→ Slice-004 (Memory) → Phase 3
+Slice-006 (UI/UX) ───────────────────────┘
+Slice-007 (Graph Concurrency Lock) ──── 可独立在任何阶段做
+```
 
-### OPANEL-PHASE2-002: Actor Message Semantics
+### Recommended Execution Order
 
-Formalize actor-level visible messages separately from system bus messages. Persist each actor message as an `actor_message` artifact node, then let queues hold delivery/status references for routing, selection, done, delete, and monitor events.
+1. **OPANEL-PHASE2-SLICE-003: Actor Panel Primitive Parity** — 提取共享 `ActorPanel`、stash 持久化、为 Operator 增加 stash/message/reply 能力。一切的上游。
 
-### OPANEL-PHASE2-003: Operator Artifact Tools
+2. **OPANEL-PHASE2-SLICE-005: EnhancedDecider And Decision Trace** — softmax + temperature 决策器、6 信号源、决策 trace。
 
-Implement `create_note` and `create_reply` tools that create artifact nodes and preserve Human Source immutability.
+3. **OPANEL-PHASE2-SLICE-008: Search Backend Abstraction** — `SearchBackend(ABC)`、FakeSearchService、Tavily 实现。轻量接口。
 
-### OPANEL-PHASE2-004: Web Search Evidence Ingestion
+4. **OPANEL-PHASE2-SLICE-001: Web Search Evidence Ingestion** — `search_web` 工具、URL 级去重、`web_page` artifact 导入、`write_search_report` 内置后处理、冷却硬门。
 
-Add search service abstraction, fake backend, optional real backend, `web_page` artifact import, metadata, dedupe, graph links, and monitor events. Search import is snippet-first and creates a `search_report` artifact only when at least one result is imported; full page content is a later explicit fetch action.
+5. **OPANEL-PHASE2-SLICE-002: Actor Message Semantics** — 消息阅读管线、envelope/body 两层协议、PATIENCE 约束、`send_message`/`reply_to_message` 工具。
 
-### OPANEL-PHASE2-005: EnhancedDecider And Decision Trace
+6. **OPANEL-PHASE2-SLICE-006: Dashboard Autonomy Observability** — 新增 search_activity、message 面板、决策 trace 展示。
 
-Add signal-based decision policy with explainable traces and safe coexistence with `RandomDecider`.
+7. **OPANEL-PHASE2-SLICE-007: Graph Concurrency Lock** — `asyncio.Lock` 包裹 URL 去重 + 节点导入原子操作、force_normalize 加锁。
 
-### OPANEL-PHASE2-006: Tool Registry And LLM Drafting Boundary
+8. **OPANEL-PHASE2-SLICE-004: Operator Artifact Tools (Phase 3)** — `create_note` 延期。
 
-Add tool registry and optional LLM drafting for query/message/note content while keeping action selection outside the LLM by default.
+9. **OPANEL-PHASE2-SLICE-000: Acceptance Smoke** — 整合验收测试。
 
-### OPANEL-PHASE2-007: Dashboard Autonomy Observability
+### Slice Descriptions
 
-Extend dashboard to show decision traces, tool events, web evidence nodes, and actor-level message traffic.
+### OPANEL-PHASE2-SLICE-003: Actor Panel Primitive Parity
 
-### OPANEL-PHASE2-008: Phase 2 Acceptance Smoke
+提取共享 `ActorPanel` 组件，`UserActor` 和 `AsyncOperator` 各自持有一个实例。Operator 获得 stash/note/reply 等同级原语。Stash 写入 `data/operator/stash-{op_id}.json` 持久化。
 
-Add offline smoke tests for primitive parity, fake web search import, message routing, artifact creation, decider traces, persistence, and dashboard snapshot shape.
+### OPANEL-PHASE2-SLICE-005: EnhancedDecider And Decision Trace
+
+Signal-based 决策器（softmax + temperature），6 个信号源（MessagePending、QuestPressure、GraphFrontier、StashPressure、StkPressure、Budget），决策 trace 输出 raw_scores + probabilities。`RandomDecider` 保持可用。
+
+### OPANEL-PHASE2-SLICE-008: Search Backend Abstraction
+
+`SearchBackend(ABC)`：`search(query, max_results) → list[SearchResult]`。默认实现 DuckDuckGo（免费、无需 API key）或 FakeSearchService（测试用）。可选的 Tavily 后端。
+
+### OPANEL-PHASE2-SLICE-001: Web Search Evidence Ingestion
+
+`search_web` 工具：搜索 → URL 级去重 → `web_page` artifact 导入 → `write_search_report` 内置后处理。冷却硬门（cooldown_seconds 内 search_web 信号权重为 0）。日用品搜索导入功能。
+
+### OPANEL-PHASE2-SLICE-002: Actor Message Semantics
+
+两层协议：envelope（msg_type、sender、recipients、in_reply_to、priority、status）+ body（自由中文短文章）。消息阅读管线（→ current_context → LLM prompt 注入 → Decider 信号）。PATIENCE 只约束 Actor Message。
+
+### OPANEL-PHASE2-SLICE-006: Dashboard Autonomy Observability
+
+`RuntimeMonitor` 新增 search_activity 槽、actor message 队列视图、决策 trace 展示。TUI 新增可选消息面板。
+
+### OPANEL-PHASE2-SLICE-007: Graph Concurrency Lock
+
+`MGraph` 加 `asyncio.Lock`，URL 去重 + 节点导入原子操作。`force_normalize()` 也走同一锁。
+
+### OPANEL-PHASE2-SLICE-004: Operator Artifact Tools (延期至 Phase 3)
+
+`create_note` 延期至 Phase 3。
+
+### OPANEL-PHASE2-SLICE-000: Phase 2 Acceptance Smoke
+
+离线冒烟测试覆盖：primitive parity、fake search 导入、消息路由、artifact 创建、decider trace、persistence、dashboard snapshot shape。
 
 ## Acceptance Criteria
 
@@ -469,6 +520,24 @@ Add offline smoke tests for primitive parity, fake web search import, message ro
 | External search tests become flaky | Fake backend is mandatory; real backend optional |
 | Operators spam messages or notes | Cooldowns, repeat penalties, token budget, max results, and monitor visibility |
 
-## Open Questions
+## Resolved Design Decisions
 
-- Detailed `actor_message` protocol remains a follow-up design topic: exact title/body metadata, threading, reply linkage, queue status persistence, and how question/answer/request parts are represented without fragmenting the main body.
+以下设计问题已通过 grill-with-docs 会话决议（2026-05-22），记录于 `docs/CONTEXT.md`：
+
+| 问题 | 决议 |
+|---|---|
+| 两层自治边界 | Layer 1 用 softmax + temperature（可配，→0 确定性，→∞ 等价 RandomDecider） |
+| Operator 如何获得 panel primitives | 提取共享 `ActorPanel` 组件，UserActor 和 AsyncOperator 各持一个实例 |
+| Actor Message 协议 | 两层：envelope（结构化 metadata）+ body（自由中文短文章） |
+| System vs Actor Message 共存 | System 走 bus 全量 drain，Actor 走 ActorPanel.active_messages 受 PATIENCE 约束 |
+| 消息阅读管线 | 纳入 current_context → 本轮已读全注入 LLM prompt → metadata 转 Decider 信号 |
+| Decider Action 空间 | `{wander, ask, answer, score, idle, sleep, stash_current, send_message, reply_to_message, search_web, read_stash}`；`create_note` Phase 3 |
+| Stash 持久化 | 存 `data/operator/stash-{op_id}.json` |
+| Web 搜索去重粒度 | URL 级去重（查 `metadata.web_url`） |
+| 搜索冷却 | 硬门（Hard Gate），signal 注入阶段权重归零，cooldown 状态在 ActorPanel |
+| Token 预算 | 复用 `RequestPool`（15s/250K tokens），`BudgetSignal` 做全域衰减 |
+| 并发搜索竞态 | `MGraph.asyncio.Lock` 包裹去重+导入原子操作 |
+| 决策 trace 格式 | 两层：`raw_scores` + `probabilities`（softmax 后） |
+| User Actor Phase 2 能力 | 不获得 search_web；User 通过 send_message 请求 Operator 代劳 |
+| Stash-as-Memory 边界 | Phase 2：规则选取注入 prompt；Phase 3：检索策略（关键词/TF-IDF/向量/rerank） |
+| Slice 执行顺序 | Slice-003 → 005 → 008 → 001 → 002 → 006 → 007 → 004(Phase 3)

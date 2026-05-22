@@ -18,10 +18,30 @@ External Evidence 是 Operator 从系统外部获取的未验证材料，例如 
 Search Report 是外部搜索行动产生候选结果后生成的作文式 Operator Artifact，正文默认中文，以连贯主文段完成材料总结/综述和由材料引发的联想/反思；搜索无结果或失败时不生成。
 
 ### Actor Message
-Actor Message 是 Actor 之间通信的节点化短文，使用 `kind: "artifact"` 与 `metadata.artifact_type: "actor_message"` 表达。它的主体形式是一篇详细描述的短文章，可包含问题、回答和请求；Message Queue / MessageBus 是对这些 message nodes 的待处理视图和消费结构，可以继续用队列实现。
+Actor Message 是 Actor 之间通信的节点化短文，使用 `kind: "artifact"` 与 `metadata.artifact_type: "actor_message"` 表达。它分为两层：
+
+- **Envelope（结构化）**：`metadata` 包含 `msg_type: "question"|"alert"|"result"|"request_review"|"info"`、`sender`、`recipients`、`in_reply_to`、`priority`、`status: "active"|"done"|"deleted"`
+- **Body（自由文本）**：`content` 为中文短文章，可自然包含问题、回答、请求，不做结构化拆分
+
+### System Message vs Actor Message 分离
+System Message（ClockTick、QuestPosted、AnswerSubmitted、AnswerScored）是运行时协调信号，瞬态、广播、fire-and-forget，通过 MessageBus 全量 drain。Actor Message 是 Actor 通过 `send_message` 工具显式发出的通信产物，持久化为 `actor_message` artifact node，进入接收方 ActorPanel 的 `active_messages` 队列。PATIENCE 只影响 Actor Message 的消费节奏，不影响 System Message 的传递。
+
+### Message Reading 管线
+Operator 每 tick 的阅读分为三部曲：
+1. **纳入上下文**—消息 content 暂存到 volatile `current_context` 区域，后续 LLM 起草动作时注入 prompt（本轮阅读过的全部注入，不设上限）
+2. **更新队列状态**—`select_message` 将 `selected_message` 指向当前消息；阅读后消息保持 `active` 直到显式 reply/done
+3. **注入 Decider 信号**—消息元数据直接转为 Decider 信号（question 未回复 → reply 权重+0.5；request_review 未回复 → answer/search 权重+0.3；active_messages 积压 > 3 → 压力信号）
 
 ### Operator Context
 Operator Context 是一次行动时显式送入 LLM 或 runtime policy 的可见材料集合，例如 current node、阅读路径、stash、selected message、search snippets、历史 artifact 摘要。它不是 LLM 自带的长期记忆；需要持久化的“想法”必须写成 Graph Node、Artifact、Trace、Stash 或 metadata。
+
+### Stash 持久化
+Stash 随 `ActorPanel` 存盘到 `data/operator/stash-{op_id}.json`，重启时重装。每条条目的 `node_id` + `reason` 不变，`added_at` 保持原始时间戳以维持 age signal 的连续性。
+
+### Stash-as-Memory (Phase 2 边界)
+Stash 在 Phase 2 作为"可召回的工作记忆提示"：在 prompt 组装阶段按规则选取若干条目拉节点正文，拼入 prompt 的 context 段。选取规则：stash_age 在 TTL 内、reason=="search_report" 优先、最多取 3 条按 added_at 倒序。不做摘要或压缩，不做跨 tick 的印象维持。
+
+Phase 3 增加 stash 检索策略（关键词、TF-IDF、向量、rerank 等）。
 
 ### Memory / Impression Layer
 Memory / Impression Layer 是 Phase 3 候选能力：在送入 LLM 的 prompt 前插入一段实时动态维护的记忆/印象内容，供 LLM 参考但不强制使用；维护策略尚未决策。
@@ -37,9 +57,12 @@ Operator 对 Human Source 的任何“修改”都必须表示为新的 Operator
 
 ## Runtime
 
+### ActorPanel
+Actor 的交互原语面板，包含 stash、message queue、note/reply 能力。`UserActor` 和 `AsyncOperator` 各自持有一个 `ActorPanel` 实例，共享同一套实现，修改一处两边生效。Phase 2 提取自 MVP 的 `UserActor`。
+
 ### AsyncOperator
 自主意志循环的独立 Agent。每个 Operator 拥有独立 asyncio Task 和独立决策权；Persona 主要作为 LLM 提示诱导与 UI 展示元数据。
-通过 `run()` 循环中的 4 个核心动作（wander / ask / answer / score）与世界互动。
+通过 `run()` 循环中的行动（wander / ask / answer / score / idle / sleep / stash_current / send_message / reply_to_message / search_web / read_stash）与世界互动。`create_note` 延期至 Phase 3 讨论。
 
 ### OperatorRuntime
 调度器，管理所有 Operator 的生命周期（创建、启动、关闭）。持有共享状态（MGraph, QuestBoard, TagManager, MessageBus）。
@@ -116,3 +139,10 @@ Decider 选 action（做什么），Persona 诱导 LLM 表达（怎么说）并�
 - `search_report` 和 `web_page` 作为 Graph Node 对所有 Actor 全局可见，但不会默认广播到 User 或其他 Operator 的消息队列；只有显式 `send_message` 才产生 actor-level message。
 - Actor-level message 可以继续使用队列数据结构作为收件箱/待办实现，但消息的表现形式和持久化形式应是 `actor_message` artifact node；队列项引用 message node，并保存 selected/done/deleted 等处理状态。
 - Phase 2 不实现独立 Memory / Impression Layer。Phase 3 可考虑将动态维护的记忆/印象内容插入 prompt 前部，作为可用但非强制使用的 LLM 上下文。
+- EnhancedDecider 使用 softmax + temperature 决策。temperature 可配置：→ 0 趋近确定性，→ ∞ 趋近均匀（等价 RandomDecider）。决策 trace 记录 raw weights + 最终概率分布 + 采样结果。
+- Search 重复检测：URL 级去重。`search_web` 执行时对每个搜索结果 URL 查图，已有 `metadata.web_url == url` 的节点则跳过导入；"force" 参数可覆盖跳过。
+- Search cooldown 为硬门（Hard Gate），在 Decider signal 注入阶段将 search_web 权重设为 0。cooldown 状态存放在 ActorPanel。
+- Token 预算门槛使用 `RequestPool` 现有滑动窗口（15s / 250K tokens）。`BudgetSignal` 取 `used_tokens / token_budget` 做全域衰减因子（从 1.0 线性下降到 0.2）。`write_search_report` 的估计成本在 Decider 评估 search_web 时即计入。
+- Phase 2 User Actor 不获得 `search_web`。User 需要外部信息时通过 `send_message` 向 Operator 请求，Operator 在其正常决策循环中处理。Phase 3 再讨论 User 搜索能力。
+- `create_note` 延期至 Phase 3。
+- `write_search_report` 是 `search_web` 的内置后处理步骤，不在 Decider action 空间内。
