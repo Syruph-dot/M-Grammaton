@@ -19,6 +19,7 @@ from quest_board import QuestBoard
 from questnode import AnswerNode, AnswerTrace, QuestNode
 from runtime.actor_panel import ActorPanel
 from runtime.messages import AnswerScored, AnswerSubmitted, ClockTick, QuestPosted
+from runtime.monitor import DecisionTraceEvent
 from runtime.search_service import FakeSearchService, SearchBackend, SearchResult
 from operator_core import read_context, read_path, navigate
 
@@ -116,6 +117,20 @@ class AsyncOperator:
                     graph=graph,
                     board=board,
                 )
+
+                # 报告决策 trace（如果 decider 支持）
+                if self.monitor:
+                    trace = getattr(self.decider, 'last_trace', None)
+                    if trace is not None:
+                        self.monitor.report_decision(DecisionTraceEvent(
+                            operator_id=self.id,
+                            chosen=trace.chosen,
+                            temperature=trace.temperature,
+                            raw_scores=trace.raw_scores,
+                            probabilities=trace.probabilities,
+                            top_signals=trace.top_signals,
+                            timestamp=time.time(),
+                        ))
 
                 detail = ""
                 match action.type:

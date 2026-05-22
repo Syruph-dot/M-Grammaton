@@ -106,11 +106,13 @@
 
   #token-chart{height:150px;padding:8px 10px 12px}
   #token-chart svg{width:100%;height:100%}
-  .bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;min-height:200px}
-  #events,#quests{max-height:240px;overflow:auto}
-  .event-row,.quest-row{display:grid;grid-template-columns:92px 1fr;gap:10px;padding:8px 12px;border-bottom:1px solid #242d36;font-size:12px}
-  .event-type,.quest-id{color:#66c2ff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .event-detail,.quest-detail{color:#b8c2cc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bottom-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px;min-height:200px}
+  #events,#quests,#traces{max-height:240px;overflow:auto}
+  .event-row,.quest-row,.trace-row{display:grid;grid-template-columns:92px 1fr;gap:10px;padding:8px 12px;border-bottom:1px solid #242d36;font-size:12px}
+  .event-type,.quest-id,.trace-op{color:#66c2ff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .event-detail,.quest-detail,.trace-info{color:#b8c2cc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .trace-chosen{color:#79d8b0;font-weight:600}
+  .trace-temp{color:#7c8794;font-size:10px}
   .link{stroke:#3a4652;stroke-opacity:.55}
   .node{stroke:#111820;stroke-width:1.5px;cursor:pointer}
   .node.document{fill:#5da9e9}.node.quest{fill:#f2c94c}.node.answer{fill:#79d8b0}.node.active{stroke:#ff7a59;stroke-width:3px}
@@ -169,6 +171,10 @@
       <div class="panel-header"><div class="panel-title">Quests</div><div class="panel-meta" id="quest-count">0</div></div>
       <div id="quests"></div>
     </section>
+    <section class="panel">
+      <div class="panel-header"><div class="panel-title">Decision Traces</div><div class="panel-meta" id="trace-count">0</div></div>
+      <div id="traces"></div>
+    </section>
   </section>
 </div>
 
@@ -179,6 +185,7 @@
 const appState = {
   snapshot: null,
   events: [],
+  traces: [],
   nodes: [],
   links: [],
   nodeById: new Map(),
@@ -648,6 +655,41 @@ function renderSnapshot(snapshot) {
   renderQuests(snapshot.quests || {active: [], completed: []});
   mergeGraph(snapshot.graph || {version: 0, nodes: [], links: []});
 
+  // Render traces from snapshot
+  if (snapshot.decision_traces && snapshot.decision_traces.length) {
+    appState.traces = snapshot.decision_traces.slice(0, 20);
+    renderTraces();
+  }
+
+  // Populate initial events from snapshot if SSE not yet active
+  if (snapshot.events && snapshot.events.length && !appState.events.length) {
+    appState.events = snapshot.events.slice(-60).reverse();
+    document.getElementById('event-count').textContent = fmt(appState.events.length);
+    document.getElementById('events').innerHTML = appState.events.map(item => {
+      let detail = '';
+      if (item.operator) {
+        detail = `${item.operator.id} ${item.operator.action} ${item.operator.detail || ''}`;
+      } else if (item.tokens) {
+        detail = `${item.tokens.operator_id || 'llm'} ${item.tokens.action}: ${item.tokens.tokens} tokens (${item.tokens.source})`;
+      } else if (item.type === 'decision_trace' && item.trace) {
+        detail = `${item.trace.operator_id} → ${item.trace.chosen} T=${item.trace.temperature}`;
+      } else {
+        detail = JSON.stringify(item).slice(0, 120);
+      }
+      return `<div class="event-row"><div class="event-type">${esc(item.type)}</div><div class="event-detail">${esc(detail)}</div></div>`;
+    }).join('');
+    // Seed traces from historic events too
+    snapshot.events.forEach(ev => {
+      if (ev.type === 'decision_trace' && ev.trace) {
+        if (!appState.traces.some(t => t.timestamp === ev.trace.timestamp && t.operator_id === ev.trace.operator_id)) {
+          appState.traces.push(ev.trace);
+        }
+      }
+    });
+    appState.traces = appState.traces.slice(0, 20);
+    renderTraces();
+  }
+
   // Render actor list
   const actors = snapshot.actors || [];
   appState.operators = snapshot.operators || [];
@@ -707,6 +749,18 @@ function renderTokenChart(tokens) {
   chart.append('text').attr('x', width - 8).attr('y', 16).attr('text-anchor', 'end').attr('fill', '#7c8794').attr('font-size', 10).text('t/s');
 }
 
+function renderTraces() {
+  const traces = appState.traces;
+  document.getElementById('trace-count').textContent = fmt(traces.length);
+  document.getElementById('traces').innerHTML = traces.length ? traces.map(t => {
+    const signals = (t.top_signals || []).slice(0, 3).join('; ');
+    return `<div class="trace-row">
+      <div class="trace-op">${esc(t.operator_id)}</div>
+      <div class="trace-info"><span class="trace-chosen">${esc(t.chosen)}</span> <span class="trace-temp">T=${t.temperature.toFixed(2)}</span>${signals ? ' · ' + esc(signals) : ''}</div>
+    </div>`;
+  }).join('') : '<div class="trace-row"><div class="trace-op">——</div><div class="trace-info">No decision traces yet</div></div>';
+}
+
 function renderQuests(quests) {
   const active = quests.active || [];
   const completed = quests.completed || [];
@@ -729,11 +783,25 @@ function pushEvent(event) {
   appState.events = appState.events.slice(0, 60);
   document.getElementById('event-count').textContent = fmt(appState.events.length);
   document.getElementById('events').innerHTML = appState.events.map(item => {
-    const detail = item.operator ? `${item.operator.id} ${item.operator.action} ${item.operator.detail || ''}` :
-      item.tokens ? `${item.tokens.operator_id || 'llm'} ${item.tokens.action}: ${item.tokens.tokens} tokens (${item.tokens.source})` :
-      JSON.stringify(item);
+    let detail = '';
+    if (item.operator) {
+      detail = `${item.operator.id} ${item.operator.action} ${item.operator.detail || ''}`;
+    } else if (item.tokens) {
+      detail = `${item.tokens.operator_id || 'llm'} ${item.tokens.action}: ${item.tokens.tokens} tokens (${item.tokens.source})`;
+    } else if (item.type === 'decision_trace' && item.trace) {
+      detail = `${item.trace.operator_id} → ${item.trace.chosen} T=${item.trace.temperature}`;
+    } else {
+      detail = JSON.stringify(item).slice(0, 120);
+    }
     return `<div class="event-row"><div class="event-type">${esc(item.type)}</div><div class="event-detail">${esc(detail)}</div></div>`;
   }).join('');
+
+  // Also update traces panel if decision_trace
+  if (event.type === 'decision_trace' && event.trace) {
+    appState.traces.unshift(event.trace);
+    appState.traces = appState.traces.slice(0, 20);
+    renderTraces();
+  }
 }
 
 async function fetchSnapshot() {

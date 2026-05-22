@@ -24,6 +24,18 @@ class OperatorSnapshot:
 
 
 @dataclass
+class DecisionTraceEvent:
+    """决策 trace 事件。"""
+    operator_id: str
+    chosen: str
+    temperature: float
+    raw_scores: dict
+    probabilities: dict
+    top_signals: list
+    timestamp: float = 0.0
+
+
+@dataclass
 class TokenUsageEvent:
     operator_id: str
     action: str
@@ -56,6 +68,8 @@ class RuntimeMonitor:
         self._total_tokens = 0
         self._reported_requests = 0
         self._estimated_requests = 0
+        self._decision_traces: deque[DecisionTraceEvent] = deque(maxlen=100)
+        self._event_store: deque[dict] = deque(maxlen=200)
 
     # ── 被 AsyncOperator 调用 ─────────────────────
 
@@ -181,7 +195,44 @@ class RuntimeMonitor:
             "tps_series": tps_series,
         }
 
+    # ── 决策 trace ────────────────────────────
+
+    def report_decision(self, trace_event: DecisionTraceEvent):
+        self._decision_traces.append(trace_event)
+        self._push_event({
+            "type": "decision_trace",
+            "trace": {
+                "operator_id": trace_event.operator_id,
+                "chosen": trace_event.chosen,
+                "temperature": trace_event.temperature,
+                "raw_scores": trace_event.raw_scores,
+                "probabilities": trace_event.probabilities,
+                "top_signals": trace_event.top_signals,
+                "timestamp": trace_event.timestamp,
+            },
+        })
+
+    def recent_decision_traces(self, limit: int = 5) -> list[dict]:
+        return [
+            {
+                "operator_id": t.operator_id,
+                "chosen": t.chosen,
+                "temperature": t.temperature,
+                "raw_scores": t.raw_scores,
+                "probabilities": t.probabilities,
+                "top_signals": t.top_signals,
+                "timestamp": t.timestamp,
+            }
+            for t in list(self._decision_traces)[-limit:]
+        ]
+
+    # ── 最近事件 ──────────────────────────────
+
+    def recent_events(self, limit: int = 50) -> list[dict]:
+        return list(self._event_store)[-limit:]
+
     def _push_event(self, event: dict):
+        self._event_store.append(event)
         stale = []
         for q in self._event_subscribers:
             try:

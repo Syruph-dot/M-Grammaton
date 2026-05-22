@@ -147,6 +147,20 @@ async def dashboard_stream(request: Request):
     return EventSourceResponse(event_generator())
 
 
+@app.get("/api/dashboard/events/recent")
+async def dashboard_events_recent():
+    if monitor is None:
+        return {"events": []}
+    return {"events": monitor.recent_events(limit=50)}
+
+
+@app.get("/api/dashboard/traces")
+async def dashboard_traces():
+    if monitor is None:
+        return {"traces": []}
+    return {"traces": monitor.recent_decision_traces(limit=10)}
+
+
 # ── Actor Panel API ───────────────────────────────────
 
 
@@ -420,6 +434,8 @@ def _build_dashboard_snapshot(runtime_obj=None, monitor_obj=None, now: float | N
             "completed": [_quest_summary(item) for item in completed_quests],
         },
         "actors": _actor_list(user_actor_ref, monitor_obj),
+        "events": monitor_obj.recent_events(limit=30) if monitor_obj else [],
+        "decision_traces": monitor_obj.recent_decision_traces(limit=10) if monitor_obj else [],
     }
 
 
