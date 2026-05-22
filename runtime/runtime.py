@@ -91,6 +91,7 @@ class OperatorRuntime:
                 llm_client=self.llm_client,
                 monitor=self.monitor,
             )
+            op.panel.load_stash(data_dir)
             if content_nodes:
                 op.bind(content_nodes[0])
             self.operators[name] = op
@@ -170,6 +171,11 @@ class OperatorRuntime:
         logger.info("[Runtime] 正在关闭...")
         self.running = False
         self._running_ref[0] = False
+        try:
+            for op in self.operators.values():
+                op.panel.save_stash(self.data_dir)
+        except Exception:
+            logger.exception("[Runtime] 保存 stash 失败")
         try:
             self.tag_manager.rebuild_from_graph(self.graph)
             save_graph(self.graph, self.board, self.operators,

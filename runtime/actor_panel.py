@@ -6,15 +6,17 @@
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from mgraph import MGraph, Node, NodePtr
 from questnode import AnswerNode, QuestNode
 
 
-# ── 收藏夹条目（Actor-local runtime state，Issue 004 落地） ─────
+# ── 收藏夹条目（Actor-local runtime state） ─────
 
 
 @dataclass
@@ -26,7 +28,7 @@ class StashItem:
     reason: str = ""
 
 
-# ── 消息信封（Issue 006 落地） ──────────────────────────────
+# ── 消息信封 ──────────────────────────────
 
 
 @dataclass
@@ -40,7 +42,7 @@ class MessageEnvelope:
     status: str = "active"  # active | done | deleted | blocked
 
 
-# ── 统一面板状态 ─────────────────────────────────────────
+# ── 统一面板状态 ─────────────────────────
 
 
 @dataclass
@@ -52,7 +54,7 @@ class ActorPanelState:
     current_node_kind: str = ""
     current_node_title: str = ""
     current_node_content_preview: str = ""
-    is_readonly: bool = False  # Human Source 节点只读
+    is_readonly: bool = False
     out_edges: list[dict] = field(default_factory=list)
     in_edges: list[dict] = field(default_factory=list)
     stash: list[dict] = field(default_factory=list)
@@ -60,6 +62,7 @@ class ActorPanelState:
     active_messages: list[dict] = field(default_factory=list)
     blocked_messages: list[dict] = field(default_factory=list)
     timestamp: float = 0.0
+    search_cooldown_until: float = 0.0
 
     def to_dict(self) -> dict:
         return {
@@ -77,24 +80,22 @@ class ActorPanelState:
             "active_messages": list(self.active_messages),
             "blocked_messages": list(self.blocked_messages),
             "timestamp": self.timestamp,
+            "search_cooldown_until": self.search_cooldown_until,
         }
 
 
-# ── User Actor ─────────────────────────────────────────────
+# ── 共享 ActorPanel ─────────────────────────
 
 
-class UserActor:
-    """User Actor —— 人类用户的图游标。
+STASH_DEFAULT_TTL = 300  # 5 分钟
 
-    User 拥有可手动控制的 current node、stash、selected message。
-    Operator 的对应状态由其 AsyncOperator 实例管理。
-    """
 
-    STASH_DEFAULT_TTL = 300  # 5 分钟
+class ActorPanel:
+    """共享 Actor 面板 —— UserActor 和 AsyncOperator 各持一个实例。"""
 
-    def __init__(self):
-        self.id = "user"
-        self.kind = "user"
+    def __init__(self, actor_id: str = "", actor_kind: str = ""):
+        self.id = actor_id
+        self.kind = actor_kind
         self.current = NodePtr()
         self.stash: list[StashItem] = []
         self.selected_message: str = ""
@@ -103,8 +104,9 @@ class UserActor:
         self._selected_out_edge_target: str = ""
         self._panel_events: list[dict] = []
         self._message_counter = 0
+        self.search_cooldown_until: float = 0.0
 
-    # ── 基础操作 ────────────────────────────────────────
+    # ── 基础操作 ────────────────────────────
 
     def bind(self, node):
         self.current.bind(node)
@@ -118,7 +120,7 @@ class UserActor:
         except ReferenceError:
             return ""
 
-    # ── 面板事件 ────────────────────────────────────────
+    # ── 面板事件 ──────────────────────────
 
     def _add_event(self, action: str, detail: str = ""):
         self._panel_events.append({
@@ -130,10 +132,14 @@ class UserActor:
         if len(self._panel_events) > 200:
             self._panel_events = self._panel_events[-100:]
 
-    # ── 003: Cursor 命令 ─────────────────────────────
+    def pop_events(self) -> list[dict]:
+        events = list(self._panel_events)
+        self._panel_events = []
+        return events
+
+    # ── Cursor 命令 ───────────────────────
 
     def select_out_edge(self, target_node_name: str) -> bool:
-        """只改变 selected edge，不移动 cursor。"""
         try:
             node = self.current.get()
         except ReferenceError:
@@ -146,7 +152,6 @@ class UserActor:
         return False
 
     def nav_selected_edge(self, graph: MGraph | None = None) -> tuple[bool, str]:
-        """沿 selected edge 移动 cursor，并清理失效 selection。"""
         target = self._selected_out_edge_target
         if not target:
             return False, "no_selected_edge"
@@ -154,12 +159,10 @@ class UserActor:
             node = self.current.get()
         except ReferenceError:
             return False, "no_current_node"
-        # 检查 selected target 是否仍是出边
         valid = any(e.target.name == target for e in node.outlinks)
         if not valid:
             self._selected_out_edge_target = ""
             return False, "stale_edge"
-        # 在图中找目标节点
         if graph is None:
             return False, "no_graph"
         for n in graph.V:
@@ -171,7 +174,6 @@ class UserActor:
         return False, "target_not_found"
 
     def random_select_out_edge(self, graph: MGraph | None = None) -> tuple[bool, str]:
-        """按当前边权抽样一个 out edge 并高亮。"""
         try:
             node = self.current.get()
         except ReferenceError:
@@ -179,10 +181,8 @@ class UserActor:
         if not node.outlinks:
             self._selected_out_edge_target = ""
             return False, "no_out_edges"
-        # 加权随机
         total = sum(e.value for e in node.outlinks)
         if total <= 0:
-            # 均匀
             import random
             edge = random.choice(node.outlinks)
         else:
@@ -200,7 +200,6 @@ class UserActor:
         return True, edge.target.name
 
     def random_reset_cursor(self, graph: MGraph | None = None) -> tuple[bool, str]:
-        """绑定到随机 node，空图时返回错误。"""
         if graph is None or not graph.V:
             return False, "empty_graph"
         import random
@@ -209,16 +208,14 @@ class UserActor:
         self._add_event("random_reset_cursor", node.name)
         return True, node.name
 
-    # ── 004: Stash ──────────────────────────────────
+    # ── Stash ─────────────────────────────
 
     def add_to_stash(self, node, reason: str = "", ttl: int | None = None) -> bool:
-        """当前 chunk 加入 actor stash。"""
         try:
             node_name = node.name
             title = getattr(node, "title", node_name) or node_name
         except Exception:
             return False
-        # 避免重复
         for item in self.stash:
             if item.node_id == node_name:
                 return False
@@ -227,7 +224,7 @@ class UserActor:
             node_id=node_name,
             title=title,
             added_at=now,
-            expires_at=now + (ttl if ttl is not None else self.STASH_DEFAULT_TTL),
+            expires_at=now + (ttl if ttl is not None else STASH_DEFAULT_TTL),
             reason=reason,
         )
         self.stash.append(item)
@@ -235,7 +232,6 @@ class UserActor:
         return True
 
     def remove_from_stash(self, node_id: str) -> bool:
-        """移除 stash item。"""
         for i, item in enumerate(self.stash):
             if item.node_id == node_id:
                 self.stash.pop(i)
@@ -243,14 +239,66 @@ class UserActor:
                 return True
         return False
 
-    # ── 006: Message Queue ──────────────────────────
+    def get_stash_context(self, max_items: int = 5) -> list[dict]:
+        now = time.time()
+        valid = [s for s in self.stash if s.expires_at <= 0 or s.expires_at > now]
+        return [
+            {"node_id": s.node_id, "title": s.title, "reason": s.reason,
+             "added_at": s.added_at}
+            for s in valid[-max_items:]
+        ]
+
+    # ── Stash 持久化 ───────────────────────
+
+    def save_stash(self, data_dir: str) -> None:
+        if not self.id or self.kind != "operator":
+            return
+        operator_dir = Path(data_dir) / "operator"
+        operator_dir.mkdir(parents=True, exist_ok=True)
+        path = operator_dir / f"stash-{self.id}.json"
+        data = [
+            {
+                "node_id": item.node_id,
+                "title": item.title,
+                "added_at": item.added_at,
+                "expires_at": item.expires_at,
+                "reason": item.reason,
+            }
+            for item in self.stash
+        ]
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        if path.exists():
+            path.unlink()
+        tmp.rename(path)
+
+    def load_stash(self, data_dir: str) -> None:
+        if not self.id or self.kind != "operator":
+            return
+        path = Path(data_dir) / "operator" / f"stash-{self.id}.json"
+        if not path.exists():
+            return
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return
+        self.stash = []
+        for item in data:
+            self.stash.append(StashItem(
+                node_id=item.get("node_id", ""),
+                title=item.get("title", ""),
+                added_at=item.get("added_at", 0.0),
+                expires_at=item.get("expires_at", 0.0),
+                reason=item.get("reason", ""),
+            ))
+
+    # ── Message Queue ─────────────────────
 
     def _next_message_id(self) -> str:
         self._message_counter += 1
-        return f"msg_{self._message_counter}"
+        return f"msg_{self.id}_{self._message_counter}"
 
     def add_message(self, type: str, summary: str = "", payload: dict | None = None) -> str:
-        """向 active queue 添加一条消息。"""
         msg_id = self._next_message_id()
         env = MessageEnvelope(
             id=msg_id,
@@ -265,7 +313,6 @@ class UserActor:
         return msg_id
 
     def select_message_next(self) -> bool:
-        """选择 active queue 中下一条消息。"""
         if not self.active_messages:
             return False
         ids = [m.id for m in self.active_messages if m.status == "active"]
@@ -279,7 +326,6 @@ class UserActor:
         return True
 
     def select_message_prev(self) -> bool:
-        """选择 active queue 中上一条消息。"""
         if not self.active_messages:
             return False
         ids = [m.id for m in self.active_messages if m.status == "active"]
@@ -293,7 +339,6 @@ class UserActor:
         return True
 
     def set_message_done(self) -> bool:
-        """把 selected message 标为 done 并从 active queue 移出。"""
         if not self.selected_message:
             return False
         for m in self.active_messages:
@@ -307,7 +352,6 @@ class UserActor:
         return False
 
     def delete_message(self) -> bool:
-        """软删除 selected message。"""
         if not self.selected_message:
             return False
         for m in self.active_messages:
@@ -321,7 +365,6 @@ class UserActor:
         return False
 
     def block_message(self, msg_id: str, reason: str = "unsupported") -> bool:
-        """把消息移入 blocked queue。"""
         for m in self.active_messages:
             if m.id == msg_id:
                 m.status = "blocked"
@@ -333,14 +376,13 @@ class UserActor:
                 return True
         return False
 
-    # ── 005: Note / Reply Commit ─────────────────────
+    # ── Note / Reply Commit ────────────────
 
     def _next_artifact_id(self, prefix: str = "note") -> str:
         self._message_counter += 1
         return f"{prefix}_{self.id}_{int(time.time())}_{self._message_counter}"
 
     def commit_note(self, content: str, graph: MGraph | None = None) -> tuple[bool, str]:
-        """在当前 chunk 创建 Note artifact。"""
         if not content.strip():
             return False, "empty_content"
         if graph is None:
@@ -349,7 +391,6 @@ class UserActor:
             source = self.current.get()
         except ReferenceError:
             return False, "no_current_node"
-
         note_id = self._next_artifact_id("note")
         note = Node(note_id, kind="note", content=content.strip(), mg=graph)
         note.title = f"Note: {content[:40]}"
@@ -359,14 +400,11 @@ class UserActor:
 
     def commit_reply(self, content: str, quest_name: str | None = None,
                      graph: MGraph | None = None) -> tuple[bool, str]:
-        """对 selected Quest 提交 Answer artifact；无 quest 时创建 Note。"""
         if not content.strip():
             return False, "empty_content"
         if graph is None:
             return False, "no_graph"
-
         if quest_name:
-            # 回复 Quest → 创建 AnswerNode
             for node in graph.V:
                 if isinstance(node, QuestNode) and node.name == quest_name:
                     ans_id = self._next_artifact_id("answer")
@@ -381,22 +419,18 @@ class UserActor:
                     self._add_event("commit_reply", ans_id)
                     return True, ans_id
             return False, "quest_not_found"
-
-        # 无 quest → 创建 Note artifact
         return self.commit_note(content, graph)
 
-    # ── Panel State 构建 ─────────────────────────────
+    # ── Panel State 构建 ────────────────────
 
     def build_panel_state(self, graph: MGraph | None = None) -> ActorPanelState:
-        """构建当前 User 的面板快照。"""
         state = ActorPanelState(
             actor_id=self.id,
             actor_kind=self.kind,
             current_node=self.current_node,
             timestamp=time.time(),
+            search_cooldown_until=self.search_cooldown_until,
         )
-
-        # 如果指针空但图非空，自动绑定到第一个内容节点
         if not self.current and graph is not None and graph.V:
             content_nodes = [
                 n for n in graph.V
@@ -406,7 +440,6 @@ class UserActor:
                 self.bind(content_nodes[0])
                 state.current_node = content_nodes[0].name
 
-        # 填充当前节点详情
         try:
             node = self.current.get()
             state.current_node = node.name
@@ -429,7 +462,6 @@ class UserActor:
         except ReferenceError:
             pass
 
-        # 收藏夹（按需过期过滤）
         now = time.time()
         state.stash = [
             {
@@ -442,7 +474,6 @@ class UserActor:
             for item in self.stash
             if item.expires_at <= 0 or item.expires_at > now
         ]
-
         state.selected_message = self.selected_message
         state.active_messages = [
             {"id": m.id, "type": m.type, "summary": m.summary,
@@ -463,13 +494,125 @@ class UserActor:
             "current_node": self.current_node,
         }
 
+
+# ── User Actor（组合 ActorPanel）─────────────
+
+
+class UserActor:
+    """User Actor —— 人类用户的图游标。"""
+
+    def __init__(self):
+        self.panel = ActorPanel(actor_id="user", actor_kind="user")
+
+    @property
+    def id(self): return self.panel.id
+    @property
+    def kind(self): return self.panel.kind
+    @property
+    def current(self): return self.panel.current
+    @current.setter
+    def current(self, val): self.panel.current = val
+    @property
+    def stash(self): return self.panel.stash
+    @stash.setter
+    def stash(self, val): self.panel.stash = val
+    @property
+    def selected_message(self): return self.panel.selected_message
+    @selected_message.setter
+    def selected_message(self, val): self.panel.selected_message = val
+    @property
+    def active_messages(self): return self.panel.active_messages
+    @active_messages.setter
+    def active_messages(self, val): self.panel.active_messages = val
+    @property
+    def blocked_messages(self): return self.panel.blocked_messages
+    @blocked_messages.setter
+    def blocked_messages(self, val): self.panel.blocked_messages = val
+
+    @property
+    def current_node(self) -> str:
+        return self.panel.current_node
+
+    def bind(self, node):
+        return self.panel.bind(node)
+
+    def _add_event(self, action: str, detail: str = ""):
+        self.panel._add_event(action, detail)
+
+    def select_out_edge(self, target_node_name: str) -> bool:
+        return self.panel.select_out_edge(target_node_name)
+
+    def nav_selected_edge(self, graph: MGraph | None = None) -> tuple[bool, str]:
+        return self.panel.nav_selected_edge(graph)
+
+    def random_select_out_edge(self, graph: MGraph | None = None) -> tuple[bool, str]:
+        return self.panel.random_select_out_edge(graph)
+
+    def random_reset_cursor(self, graph: MGraph | None = None) -> tuple[bool, str]:
+        return self.panel.random_reset_cursor(graph)
+
+    def add_to_stash(self, node, reason: str = "", ttl: int | None = None) -> bool:
+        return self.panel.add_to_stash(node, reason, ttl)
+
+    def remove_from_stash(self, node_id: str) -> bool:
+        return self.panel.remove_from_stash(node_id)
+
+    def _next_message_id(self) -> str:
+        return self.panel._next_message_id()
+
+    def add_message(self, type: str, summary: str = "", payload: dict | None = None) -> str:
+        return self.panel.add_message(type, summary, payload)
+
+    def select_message_next(self) -> bool:
+        return self.panel.select_message_next()
+
+    def select_message_prev(self) -> bool:
+        return self.panel.select_message_prev()
+
+    def set_message_done(self) -> bool:
+        return self.panel.set_message_done()
+
+    def delete_message(self) -> bool:
+        return self.panel.delete_message()
+
+    def block_message(self, msg_id: str, reason: str = "unsupported") -> bool:
+        return self.panel.block_message(msg_id, reason)
+
+    def commit_note(self, content: str, graph: MGraph | None = None) -> tuple[bool, str]:
+        return self.panel.commit_note(content, graph)
+
+    def commit_reply(self, content: str, quest_name: str | None = None,
+                     graph: MGraph | None = None) -> tuple[bool, str]:
+        return self.panel.commit_reply(content, quest_name, graph)
+
+    def build_panel_state(self, graph: MGraph | None = None) -> ActorPanelState:
+        return self.panel.build_panel_state(graph)
+
+    def to_actor_summary(self) -> dict:
+        return self.panel.to_actor_summary()
+
     def pop_events(self) -> list[dict]:
-        events = list(self._panel_events)
-        self._panel_events = []
-        return events
+        return self.panel.pop_events()
 
 
-# ── Operator Panel 构建 ──────────────────────────────────
+# ── 辅助函数 ─────────────────────────────
+
+
+def _node_kind(node) -> str:
+    if isinstance(node, QuestNode):
+        return "quest"
+    if isinstance(node, AnswerNode):
+        return "answer"
+    return getattr(node, "kind", "document")
+
+
+def _is_human_source(node) -> bool:
+    if isinstance(node, (QuestNode, AnswerNode)):
+        return False
+    return getattr(node, "kind", "document") == "document"
+
+
+# ── 向后兼容 ─────────────────────────────
 
 
 def build_operator_panel_state(
@@ -481,7 +624,12 @@ def build_operator_panel_state(
     graph: MGraph | None = None,
     timestamp: float = 0.0,
 ) -> ActorPanelState:
-    """从 Operator 快照构建同构 panel state。"""
+    """从 Operator 快照构建同构 panel state。
+
+    注：新代码请直接使用 operator.panel.build_panel_state(graph)。
+    """
+    panel = ActorPanel(actor_id=operator_id, actor_kind="operator")
+    panel.current = NodePtr()
     state = ActorPanelState(
         actor_id=operator_id,
         actor_kind="operator",
@@ -510,18 +658,3 @@ def build_operator_panel_state(
                 ]
                 break
     return state
-
-
-def _node_kind(node) -> str:
-    if isinstance(node, QuestNode):
-        return "quest"
-    if isinstance(node, AnswerNode):
-        return "answer"
-    return getattr(node, "kind", "document")
-
-
-def _is_human_source(node) -> bool:
-    """Human Source 节点（只读）—— 非 operator artifact 的节点。"""
-    if isinstance(node, (QuestNode, AnswerNode)):
-        return False
-    return getattr(node, "kind", "document") == "document"

@@ -16,6 +16,7 @@ from persona import Persona, random_persona
 from prompts import build_answer_prompt, build_question_prompt, build_score_prompt, format_question_text
 from quest_board import QuestBoard
 from questnode import AnswerNode, AnswerTrace, QuestNode
+from runtime.actor_panel import ActorPanel
 from runtime.messages import AnswerScored, AnswerSubmitted, ClockTick, QuestPosted
 from operator_core import read_context, read_path, navigate
 
@@ -48,7 +49,8 @@ class AsyncOperator:
         self.decider = decider
         self.llm_client = llm_client
         self.persona = persona if persona is not None else random_persona()
-        self.current = NodePtr()
+        self.panel = ActorPanel(actor_id=operator_id, actor_kind="operator")
+        self.current = self.panel.current  # 共享指针
         self.submitted_quests: list[QuestNode] = []
         # PATIENCE: J 型 0.9 ±0.05, P 型 0.8 ±0.05 — 每封消息独立掷骰
         base = 0.9 if "J" in self.persona.mbti else 0.8
@@ -56,6 +58,7 @@ class AsyncOperator:
 
     def bind(self, node):
         self.current.bind(node)
+        self.panel.bind(node)
         if self.monitor:
             self.monitor.update_node(self.id, node.name)
         return self
