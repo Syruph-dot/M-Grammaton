@@ -41,15 +41,18 @@ class FakeSearchService(SearchBackend):
     """假搜索后端 —— 返回预设结果，离线可用。"""
 
     def __init__(self, results: list[SearchResult] | None = None):
-        self._results = results or [
-            SearchResult(
-                title=f"Fake Result {i}",
-                url=f"https://example.com/fake-{i}",
-                snippet=f"这是第 {i} 条假搜索结果，用于测试。",
-                source="fake",
-            )
-            for i in range(1, 6)
-        ]
+        if results is not None:
+            self._results = results
+        else:
+            self._results = [
+                SearchResult(
+                    title=f"Fake Result {i}",
+                    url=f"https://example.com/fake-{i}",
+                    snippet=f"这是第 {i} 条假搜索结果，用于测试。",
+                    source="fake",
+                )
+                for i in range(1, 6)
+            ]
 
     async def search(self, query: str, max_results: int = 5) -> list[SearchResult]:
         import asyncio

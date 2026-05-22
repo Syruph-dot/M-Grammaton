@@ -21,6 +21,7 @@ from runtime.material_summary import material_summary_loop
 from runtime.message_bus import MessageBus
 from runtime.messages import ClockTick
 from runtime.monitor import RuntimeMonitor
+from runtime.search_service import FakeSearchService, SearchBackend
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,8 @@ class OperatorRuntime:
 
     def __init__(self, data_dir: str, model: str, operator_names: list[str] | None = None,
                  monitor: RuntimeMonitor | None = None,
-                 tag_manager: TagManager | None = None):
+                 tag_manager: TagManager | None = None,
+                 search_service: SearchBackend | None = None):
         self.monitor = monitor
         self.running = False
         self._running_ref = [False]
@@ -42,6 +44,7 @@ class OperatorRuntime:
         self.data_dir = data_dir
         self._save_interval = 10  # 每 N 个 tick 自动存盘
         self.tag_manager = tag_manager or TagManager()
+        self.search_service = search_service or FakeSearchService()
 
         self.config = Config()
         self.config.model = model
@@ -90,6 +93,7 @@ class OperatorRuntime:
                 decider=RandomDecider(),
                 llm_client=self.llm_client,
                 monitor=self.monitor,
+                search_service=self.search_service,
             )
             op.panel.load_stash(data_dir)
             if content_nodes:
