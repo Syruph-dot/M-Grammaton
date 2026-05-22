@@ -264,20 +264,21 @@ class AsyncOperator:
                 self.monitor.report_action(self.id, "search_failed", "empty")
             return
 
-        # 5. URL 去重 + 导入
+        # 5. URL 去重 + 导入（原子操作，持有图锁）
         imported = []
         graph = self.graph
-        for result in results:
-            if self._is_url_imported(result.url, graph):
-                continue
-            node = self._create_web_page_node(result, graph)
-            try:
-                source = self.current.get()
-                source.link_to(node, self.WEB_EDGE_WEIGHT)
-            except Exception:
-                pass
-            imported.append(node)
-            logger.debug("[%s] 导入 web_page: %s", self.id, result.url)
+        async with graph._lock:
+            for result in results:
+                if self._is_url_imported(result.url, graph):
+                    continue
+                node = self._create_web_page_node(result, graph)
+                try:
+                    source = self.current.get()
+                    source.link_to(node, self.WEB_EDGE_WEIGHT)
+                except Exception:
+                    pass
+                imported.append(node)
+                logger.debug("[%s] 导入 web_page: %s", self.id, result.url)
 
         if not imported:
             logger.info("[%s] 搜索结果全是重复", self.id)
@@ -371,24 +372,24 @@ class AsyncOperator:
                 f"{imported_context}"
             )
 
-        node_id = f"sreport_{len(graph.V)}_{int(time.time() * 1000)}"
-        node = Node(node_id, kind="artifact", content=content, mg=graph)
-        node.title = f"Search Report: {query[:40]}"
-        node.metadata = {
-            "artifact_type": "search_report",
-            "status": "useful",
-            "query": query,
-            "actor_id": self.id,
-            "result_count": len(imported_nodes),
-            "result_ids": [n.name for n in imported_nodes],
-            "created_at": time.time(),
-        }
-
-        try:
-            source = self.current.get()
-            source.link_to(node, self.REPORT_EDGE_WEIGHT)
-        except Exception:
-            pass
+        async with graph._lock:
+            node_id = f"sreport_{len(graph.V)}_{int(time.time() * 1000)}"
+            node = Node(node_id, kind="artifact", content=content, mg=graph)
+            node.title = f"Search Report: {query[:40]}"
+            node.metadata = {
+                "artifact_type": "search_report",
+                "status": "useful",
+                "query": query,
+                "actor_id": self.id,
+                "result_count": len(imported_nodes),
+                "result_ids": [n.name for n in imported_nodes],
+                "created_at": time.time(),
+            }
+            try:
+                source = self.current.get()
+                source.link_to(node, self.REPORT_EDGE_WEIGHT)
+            except Exception:
+                pass
 
         return node
 

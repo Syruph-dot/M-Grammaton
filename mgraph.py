@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from heapq import heappop, heappush
 from math import atan2, cos, sin
@@ -366,6 +367,7 @@ class MGraph():
         self.V: set[Node] = set()
         self.E: set[Edge] = set()
         self.debug_node=None
+        self._lock = asyncio.Lock()
     def random_node(self):
         if not self.V:
             raise ValueError("graph has no nodes")
