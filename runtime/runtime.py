@@ -4,6 +4,7 @@ import asyncio
 import logging
 import signal
 import sys
+import time
 from pathlib import Path
 
 from async_llm_client import AsyncLLMClient
@@ -94,6 +95,7 @@ class OperatorRuntime:
                 llm_client=self.llm_client,
                 monitor=self.monitor,
                 search_service=self.search_service,
+                message_router=self._route_actor_message,
             )
             op.panel.load_stash(data_dir)
             if content_nodes:
@@ -150,6 +152,45 @@ class OperatorRuntime:
         graph.force_normalize()
         logger.info("图加载完成: %d 节点, %d 边", len(graph.V), len(graph.E))
         return graph
+
+    def _route_actor_message(self, sender_id: str, body: str,
+                              msg_type: str = "info",
+                              recipients: list[str] | None = None,
+                              in_reply_to: str = ""):
+        """路由 actor-level 消息：创建 artifact + 入队目标面板。"""
+        recipients = recipients or ["user"]
+        now = time.time()
+        msg_id = f"amsg_{int(now * 1000)}_{sender_id}"
+
+        node = Node(msg_id, kind="artifact",
+                    content=body, mg=self.graph)
+        node.title = f"Message: {body[:40]}"
+        node.metadata = {
+            "artifact_type": "actor_message",
+            "msg_type": msg_type,
+            "sender": sender_id,
+            "recipients": list(recipients),
+            "in_reply_to": in_reply_to or "",
+            "priority": 1,
+            "status": "active",
+            "created_at": now,
+        }
+
+        for recipient in recipients:
+            if recipient == "user":
+                self.user_actor.add_message(
+                    msg_type, body[:120],
+                    {"msg_id": msg_id, "sender": sender_id},
+                )
+            elif recipient in self.operators:
+                op = self.operators[recipient]
+                op.panel.add_message(
+                    msg_type, body[:120],
+                    {"msg_id": msg_id, "sender": sender_id},
+                )
+            else:
+                logger.warning("[Router] 未知收件人: %s", recipient)
+        logger.info("[Router] %s -> %s: %s", sender_id, recipients, body[:60])
 
     async def start(self):
         self.running = True

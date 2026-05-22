@@ -68,6 +68,7 @@ class AsyncOperator:
         persona: Persona | None = None,
         monitor=None,
         search_service: SearchBackend | None = None,
+        message_router=None,
     ):
         self.id = operator_id
         self.graph = graph
@@ -82,6 +83,7 @@ class AsyncOperator:
         self.current = self.panel.current  # 共享指针
         self.submitted_quests: list[QuestNode] = []
         self.search_service = search_service or FakeSearchService()
+        self.message_router = message_router  # callable(sender_id, body, ...)
         # PATIENCE: J 型 0.9 ±0.05, P 型 0.8 ±0.05 — 每封消息独立掷骰
         base = 0.9 if "J" in self.persona.mbti else 0.8
         self.patience = base + random.uniform(-0.05, 0.05)
@@ -164,11 +166,11 @@ class AsyncOperator:
                         await self._search_web()
                         detail = "search_done"
                     case "send_message":
-                        await self._send_message_stub()
-                        detail = "msg_stub"
+                        await self._send_message()
+                        detail = "msg_sent"
                     case "reply_to_message":
-                        await self._reply_to_message_stub()
-                        detail = "reply_stub"
+                        await self._reply_to_message()
+                        detail = "reply_sent"
 
                 if self.monitor:
                     self.monitor.report_action(self.id, action.type, detail)
@@ -374,6 +376,74 @@ class AsyncOperator:
             pass
 
         return node
+
+    # ── Phase 2: send_message / reply_to_message ───────────
+
+    async def _send_message(self):
+        if self.message_router is None:
+            logger.debug("[%s] 无消息路由器", self.id)
+            return
+        try:
+            node = self.current.get()
+            context = f"当前节点: {getattr(node, 'title', node.name)}"
+        except Exception:
+            context = ""
+
+        if self.llm_client is not None:
+            messages = [
+                {"role": "system", "content": "用一句话简洁表达你想传达的信息。使用中文。"},
+                {"role": "user", "content": context or "请发送一条消息给用户"},
+            ]
+            try:
+                body = await self.llm_client.chat(messages)
+            except Exception:
+                body = None
+        else:
+            body = None
+
+        if not body or not body.strip():
+            body = f"{self.id} 从 {context or '当前节点'} 发送了一条消息"
+
+        self.message_router(
+            sender_id=self.id,
+            body=body.strip(),
+            msg_type="info",
+            recipients=["user"],
+        )
+        logger.info("[%s] 发送消息给 user", self.id)
+
+    async def _reply_to_message(self):
+        if self.message_router is None:
+            return
+
+        # 自动选中第一条 active message
+        if not self.panel.selected_message:
+            ok = self.panel.select_message_next()
+            if not ok:
+                return
+
+        selected_id = self.panel.selected_message
+        env = next((m for m in self.panel.active_messages
+                     if m.id == selected_id), None)
+        if env is None:
+            return
+
+        sender = env.payload.get("sender", "user")
+        msg_id = env.payload.get("msg_id", "")
+
+        body = f"{self.id} 回复了 {sender} 的消息: {env.summary or '已阅'}"
+
+        self.message_router(
+            sender_id=self.id,
+            body=body.strip(),
+            msg_type="result",
+            recipients=[sender],
+            in_reply_to=msg_id,
+        )
+
+        # 标记原消息为 done
+        self.panel.set_message_done()
+        logger.info("[%s] 回复 %s 的消息", self.id, sender)
 
     # ── Phase 2: send_message / reply_to_message 桩（Slice-002 实现） ──
 

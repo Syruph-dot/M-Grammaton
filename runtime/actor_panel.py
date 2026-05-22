@@ -487,6 +487,19 @@ class ActorPanel:
         ]
         return state
 
+    def format_messages_for_context(self) -> str:
+        """格式化 active messages 为 LLM prompt 上下文片段。"""
+        active = [m for m in self.active_messages
+                  if getattr(m, 'status', 'active') == 'active']
+        if not active:
+            return ""
+        lines = ["【待处理消息】"]
+        for m in active:
+            sender = m.payload.get("sender", "?")
+            msg_type = getattr(m, 'type', 'info')
+            lines.append(f"- [{msg_type}] 来自 {sender}: {m.summary}")
+        return "\n".join(lines)
+
     def to_actor_summary(self) -> dict:
         return {
             "id": self.id,
